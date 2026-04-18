@@ -1,4 +1,4 @@
-# Agentic-VideoRAG: A Cost-Aware and Explainable Framework for Video Retrieval
+# Agentic-VideoRAG: An Enhanced and Cost-Aware Framework for Scalable Video Retrieval
 
 [![Journal](https://img.shields.io/badge/Journal-EAAI--2026-blue)](https://www.sciencedirect.com/journal/engineering-applications-of-artificial-intelligence)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
