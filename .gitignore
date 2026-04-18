@@ -1,0 +1,22 @@
+# Environment and Secrets
+.env
+
+# Tool Specific
+.claude/
+.gemini/
+
+# Documentation and Markdown
+*.md
+highlights.txt
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+
+# LaTeX/Overleaf temporary files (optional but good practice)
+*.aux
+*.log
+*.out
+*.pdf
+*.synctex.gz

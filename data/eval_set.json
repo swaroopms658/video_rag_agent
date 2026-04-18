@@ -1,0 +1,50 @@
+[
+    {
+        "question": "What is the method to solve the property of BST mentioned in the lecture?",
+        "ground_truth_answer": "BST \u0915\u094b in order fashion \u092e\u0947\u0902 \u091f\u094d\u0930\u0935\u0930\u094d\u0938 \u0915\u0930 \u0938\u0915\u0924\u0947 \u0939\u0948\u0902"
+    },
+    {
+        "question": "What is the minimum number of nodes mentioned in the transcript segment?",
+        "ground_truth_answer": "4"
+    },
+    {
+        "question": "What is the condition to find the minimum difference between two numbers in a Binary Search Tree (BST) according to the lecture?",
+        "ground_truth_answer": "The minimum difference is found when we compare the differences between the closest two numbers."
+    },
+    {
+        "question": "What is the nature of the overall value being discussed in the context of distance and auspiration?",
+        "ground_truth_answer": "It is always going to be a positive value"
+    },
+    {
+        "question": "What is the name of the problem related to finding the minimum distance between two numbers as mentioned in the transcript segment?",
+        "ground_truth_answer": "The North All West Problem or minimum distance between bst"
+    },
+    {
+        "question": "What is the first step in the process described in the lecture transcript segment?",
+        "ground_truth_answer": "To traverse the left subtree"
+    },
+    {
+        "question": "What is the sequence of actions mentioned in the transcript segment?",
+        "ground_truth_answer": "First, compare answers to leadbuyers, then route the request, and finally, get the result of the route"
+    },
+    {
+        "question": "What is the data type of the variable 'prev' declared on line 14?",
+        "ground_truth_answer": "TreeNode*"
+    },
+    {
+        "question": "What is the value of the node that is the right child of the node with value 62 in the given binary search tree?",
+        "ground_truth_answer": "88"
+    },
+    {
+        "question": "What is the value of the node that is the right child of the node with value 62 in the given binary search tree?",
+        "ground_truth_answer": "88"
+    },
+    {
+        "question": "What is the color of the shirt worn by the woman in the image?",
+        "ground_truth_answer": "green"
+    },
+    {
+        "question": "What is the value of the node that is the right child of the node with value 62 in the given binary search tree?",
+        "ground_truth_answer": "88"
+    }
+]
