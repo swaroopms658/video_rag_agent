@@ -8,6 +8,15 @@
 # Documentation and Markdown
 *.md
 highlights.txt
+guide_text.txt
+Access-Template-2024.docx
+
+# Old and New TeX Manuscripts
+agentic_videorag.tex
+eaai_journal_submission.tex
+
+# Temporary/Process Scripts
+process_7.py
 
 # Python
 venv/
