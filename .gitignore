@@ -5,8 +5,7 @@
 .claude/
 .gemini/
 
-# Documentation and Markdown
-*.md
+# Documentation and Temporary Files
 highlights.txt
 guide_text.txt
 Access-Template-2024.docx
