@@ -31,6 +31,9 @@ def _render_bot_image(width: int = 28) -> str:
         if not img_path.exists():
             return ""
         img = Image.open(img_path).convert("RGBA")
+        bbox = img.getbbox()
+        if bbox:
+            img = img.crop(bbox)
         aspect = img.height / img.width
         height = max(2, int(width * aspect * 0.5) * 2)
         img = img.resize((width, height), Image.LANCZOS)
@@ -40,12 +43,17 @@ def _render_bot_image(width: int = 28) -> str:
             line = ""
             for x in range(width):
                 r1, g1, b1, a1 = pixels[x, y]
-                r2, g2, b2, a2 = pixels[x, y + 1] if y + 1 < height else (18, 18, 18, 255)
-                if a1 < 128:
-                    r1, g1, b1 = 18, 18, 18
-                if a2 < 128:
-                    r2, g2, b2 = 18, 18, 18
-                line += f"\033[38;2;{r1};{g1};{b1}m\033[48;2;{r2};{g2};{b2}m▀"
+                r2, g2, b2, a2 = pixels[x, y + 1] if y + 1 < height else (0, 0, 0, 0)
+                top_vis = a1 >= 128
+                bot_vis = a2 >= 128
+                if top_vis and bot_vis:
+                    line += f"\033[38;2;{r1};{g1};{b1}m\033[48;2;{r2};{g2};{b2}m▀"
+                elif top_vis:
+                    line += f"\033[0m\033[38;2;{r1};{g1};{b1}m▀"
+                elif bot_vis:
+                    line += f"\033[0m\033[38;2;{r2};{g2};{b2}m▄"
+                else:
+                    line += "\033[0m "
             lines.append(line + "\033[0m")
         return "\n".join(lines)
     except Exception:
