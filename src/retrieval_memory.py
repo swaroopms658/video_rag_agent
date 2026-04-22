@@ -1,6 +1,7 @@
 import json
 import os
 from sentence_transformers import SentenceTransformer, util
+from src.agent import make_chunk_id
 
 FEEDBACK_FILE = "data/rl_feedback.json"
 
@@ -30,7 +31,6 @@ class RetrievalMemory:
             for i, mem in enumerate(self.memory):
                 mem["_embedding"] = embeddings[i]
 
-        print(f"Loaded {len(self.memory)} verified memories.")
 
     def get_verified_contexts(self, current_query, threshold=0.85):
         """Finds similar historical queries and returns their successful context IDs."""
@@ -44,6 +44,9 @@ class RetrievalMemory:
             sim = util.pytorch_cos_sim(current_emb, mem["_embedding"]).item()
             if sim > threshold:
                 verified_ids.extend(mem["context_ids"])
-                print(f"   [Memory Hit] Query similar to: '{mem['query']}' (Sim: {sim:.2f})")
 
         return list(set(verified_ids))
+
+    @staticmethod
+    def make_context_ids(contexts):
+        return [make_chunk_id(context) for context in contexts]

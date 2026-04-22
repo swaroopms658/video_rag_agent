@@ -390,9 +390,13 @@ def main(argv=None):
     os.environ.setdefault("HUGGINGFACE_HUB_VERBOSITY", "error")
 
     import logging
+    import warnings
     logging.getLogger("transformers").setLevel(logging.ERROR)
     logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
     logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+    warnings.filterwarnings("ignore", message=".*HF_TOKEN.*")
+    warnings.filterwarnings("ignore", message=".*unauthenticated.*")
+    warnings.filterwarnings("ignore", message=".*huggingface.*", category=UserWarning)
 
     parser = build_parser()
     args = parser.parse_args(argv)
