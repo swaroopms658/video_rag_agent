@@ -86,3 +86,18 @@ def test_print_answer_no_panel_box(capsys):
     captured = capsys.readouterr()
     assert "╔" not in captured.out
     assert "╚" not in captured.out
+
+
+def test_print_status_has_dot_prefix(capsys):
+    from src.cli import _print_status
+    _print_status(None, "Loading store...")
+    captured = capsys.readouterr()
+    assert "·" in captured.out
+    assert "Loading store..." in captured.out
+
+
+def test_chat_prompt_uses_lightning_symbol():
+    import inspect
+    from src import cli
+    source = inspect.getsource(cli.chat_command)
+    assert "⚡" in source

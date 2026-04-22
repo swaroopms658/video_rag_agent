@@ -87,9 +87,9 @@ def _print_header(console, vector_store_path: str):
 
 def _print_status(console, message: str):
     if console:
-        console.print(f"[cyan]{message}[/cyan]")
+        console.print(f"  [dim]· {message}[/dim]")
     else:
-        print(message)
+        print(f"  · {message}")
 
 
 def _print_answer(console, answer: str):
@@ -188,7 +188,7 @@ def chat_command(args):
 
     while True:
         try:
-            query = input("\nYou> ").strip()
+            query = input("\n⚡ ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break
