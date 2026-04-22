@@ -109,3 +109,17 @@ def test_main_reconfigures_stdout_on_windows():
     source = inspect.getsource(cli.main)
     assert "reconfigure" in source
     assert "utf-8" in source
+
+
+def test_loading_spinner_runs_and_clears(capsys):
+    import time
+    from src.cli import _loading_spinner
+    with _loading_spinner("Testing"):
+        time.sleep(0.05)
+    captured = capsys.readouterr()
+    assert "Testing" in captured.out
+
+
+def test_loading_spinner_uses_spark_frames():
+    from src import cli
+    assert "✺" in cli._SPARK_FRAMES

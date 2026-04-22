@@ -3,6 +3,9 @@ import json
 import os
 import pathlib
 import sys
+import threading
+import time
+from contextlib import contextmanager
 from itertools import zip_longest
 from typing import Iterable, Optional
 
@@ -47,6 +50,34 @@ def _render_bot_image(width: int = 28) -> str:
         return "\n".join(lines)
     except Exception:
         return ""
+
+
+_SPARK_FRAMES = ["✶", "✸", "✺", "✸", "✶", " "]
+
+
+@contextmanager
+def _loading_spinner(message: str = "Retrieving context"):
+    stop = threading.Event()
+
+    def _run():
+        i = 0
+        while not stop.is_set():
+            frame = _SPARK_FRAMES[i % len(_SPARK_FRAMES)]
+            sys.stdout.write(f"\r  {frame}  {message}...")
+            sys.stdout.flush()
+            time.sleep(0.12)
+            i += 1
+        clear = " " * (len(message) + 20)
+        sys.stdout.write(f"\r{clear}\r")
+        sys.stdout.flush()
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        t.join()
 
 
 def _get_console():
@@ -232,8 +263,8 @@ def chat_command(args):
             _print_status(console, f"Feedback logged with reward {reward}.")
             continue
 
-        _print_status(console, "Retrieving context and generating answer...")
-        answer, contexts, score, verified_ids = _run_query(agent, memory, query)
+        with _loading_spinner("Retrieving context"):
+            answer, contexts, score, verified_ids = _run_query(agent, memory, query)
         if verified_ids:
             _print_status(console, f"Memory boost reused {len(verified_ids)} verified chunks.")
 
