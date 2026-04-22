@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-video-rag"
+version = "0.1.0"
+description = "CLI lecture assistant for transcript-centric retrieval augmented generation."
+requires-python = ">=3.10"
+dependencies = [
+    "whisper",
+    "sentence-transformers",
+    "scikit-learn",
+    "langchain",
+    "gpt4all",
+    "torch",
+    "transformers",
+    "python-dotenv",
+    "opencv-python",
+    "Pillow",
+    "requests",
+    "rich",
+]
+
+[project.scripts]
+agentic-video-rag = "src.cli:main"
+
+[tool.setuptools]
+packages = ["src"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+src = ["assets/*.png"]
