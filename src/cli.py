@@ -53,15 +53,36 @@ def _get_console():
     return Console() if Console else None
 
 
-def _print_header(console, title: str, subtitle: Optional[str] = None):
-    if console and Panel:
-        text = title if not subtitle else f"{title}\n{subtitle}"
-        console.print(Panel(text, title=APP_NAME, expand=False))
+def _print_header(console, vector_store_path: str):
+    bot_art = _render_bot_image()
+    art_lines = bot_art.split("\n") if bot_art else []
+
+    title_text = [
+        "\033[1;34m  Agentic Video RAG\033[0m",
+        "\033[2m  by M.S Swaroop · v0.1.0\033[0m",
+        "",
+        "\033[2m  Ask questions about your lecture.\033[0m",
+        "\033[2m  /help for commands.\033[0m",
+        f"\033[2m  Store: {vector_store_path}\033[0m",
+    ]
+    pad_top = max(0, (len(art_lines) - len(title_text)) // 2)
+    padded_titles = [""] * pad_top + title_text
+
+    print()
+    if console:
+        console.rule(style="blue")
     else:
-        print(f"=== {APP_NAME} ===")
-        print(title)
-        if subtitle:
-            print(subtitle)
+        print("\033[34m" + "─" * 60 + "\033[0m")
+
+    for art, title in zip_longest(art_lines, padded_titles, fillvalue=""):
+        sys.stdout.write("  " + art + title + "\n")
+    sys.stdout.flush()
+
+    if console:
+        console.rule(style="blue")
+    else:
+        print("\033[34m" + "─" * 60 + "\033[0m")
+    print()
 
 
 def _print_status(console, message: str):
@@ -152,15 +173,8 @@ def _run_query(agent, memory, query: str):
 def chat_command(args):
     console = _get_console()
     vector_store_path = _resolve_vector_store(args.vector_store)
-    _print_header(
-        console,
-        "Interactive chat mode",
-        f"Using vector store: {vector_store_path}",
-    )
-    _print_status(
-        console,
-        "Commands: /help, /sources on|off, /feedback y|n, /exit",
-    )
+    _print_header(console, vector_store_path)
+    _print_status(console, "Commands: /help, /sources on|off, /feedback y|n, /exit")
 
     agent, memory = _create_agent(vector_store_path)
     show_sources = args.show_sources

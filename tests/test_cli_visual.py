@@ -36,3 +36,24 @@ def test_render_bot_image_custom_width():
     if result:
         first_line = result.split("\n")[0]
         assert first_line.count("▀") == 10
+
+
+def test_print_header_no_crash_with_console(capsys):
+    from src.cli import _print_header
+    _print_header(None, "data/vector_store.pkl")
+    captured = capsys.readouterr()
+    assert "Agentic Video RAG" in captured.out
+
+
+def test_print_header_contains_author(capsys):
+    from src.cli import _print_header
+    _print_header(None, "data/vector_store.pkl")
+    captured = capsys.readouterr()
+    assert "M.S Swaroop" in captured.out
+
+
+def test_print_header_contains_store_path(capsys):
+    from src.cli import _print_header
+    _print_header(None, "data/my_store.pkl")
+    captured = capsys.readouterr()
+    assert "my_store.pkl" in captured.out
