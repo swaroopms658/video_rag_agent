@@ -57,3 +57,32 @@ def test_print_header_contains_store_path(capsys):
     _print_header(None, "data/my_store.pkl")
     captured = capsys.readouterr()
     assert "my_store.pkl" in captured.out
+
+
+def test_print_answer_uses_circle_mark(capsys):
+    from src.cli import _print_answer
+    _print_answer(None, "The answer is 42.")
+    captured = capsys.readouterr()
+    assert "◈" in captured.out
+
+
+def test_print_answer_shows_bot_name(capsys):
+    from src.cli import _print_answer
+    _print_answer(None, "Some answer.")
+    captured = capsys.readouterr()
+    assert "Agentic Video RAG" in captured.out
+
+
+def test_print_answer_shows_answer_text(capsys):
+    from src.cli import _print_answer
+    _print_answer(None, "Attention is all you need.")
+    captured = capsys.readouterr()
+    assert "Attention is all you need." in captured.out
+
+
+def test_print_answer_no_panel_box(capsys):
+    from src.cli import _print_answer
+    _print_answer(None, "Test.")
+    captured = capsys.readouterr()
+    assert "╔" not in captured.out
+    assert "╚" not in captured.out

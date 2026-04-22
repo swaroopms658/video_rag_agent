@@ -8,11 +8,11 @@ from typing import Iterable, Optional
 
 try:
     from rich.console import Console
-    from rich.panel import Panel
+    from rich.rule import Rule
     from rich.table import Table
 except ImportError:  # pragma: no cover - fallback for minimal installs
     Console = None
-    Panel = None
+    Rule = None
     Table = None
 
 
@@ -93,10 +93,16 @@ def _print_status(console, message: str):
 
 
 def _print_answer(console, answer: str):
-    if console and Panel:
-        console.print(Panel(answer, title="Assistant", border_style="green"))
+    if console:
+        console.print(f"\n[bold blue]◈ Agentic Video RAG[/bold blue]")
+        for line in answer.splitlines():
+            console.print(f"  {line}")
+        console.print()
     else:
-        print(f"\nAssistant:\n{answer}\n")
+        print(f"\n◈ Agentic Video RAG")
+        for line in answer.splitlines():
+            print(f"  {line}")
+        print()
 
 
 def _print_sources(console, contexts: Iterable[str], score: float):
