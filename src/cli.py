@@ -64,28 +64,37 @@ _SPARK_FRAMES = ["✶", "✸", "✺", "✸", "✶", " "]
 
 
 @contextmanager
-def _loading_spinner(message: str = "Retrieving context"):
+def _loading_spinner(message: str = "Retrieving context", suppress_output: bool = False):
     stop = threading.Event()
+    real_stdout = getattr(sys, "__stdout__", sys.stdout)
+    write_target = real_stdout if suppress_output else sys.stdout
 
     def _run():
         i = 0
         while not stop.is_set():
             frame = _SPARK_FRAMES[i % len(_SPARK_FRAMES)]
-            sys.stdout.write(f"\r  {frame}  {message}...")
-            sys.stdout.flush()
+            write_target.write(f"\r  {frame}  {message}...")
+            write_target.flush()
             time.sleep(0.12)
             i += 1
         clear = " " * (len(message) + 20)
-        sys.stdout.write(f"\r{clear}\r")
-        sys.stdout.flush()
+        write_target.write(f"\r{clear}\r")
+        write_target.flush()
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()
+    if suppress_output:
+        devnull = open(os.devnull, "w", encoding="utf-8")
+        old_stdout, old_stderr = sys.stdout, sys.stderr
+        sys.stdout = sys.stderr = devnull
     try:
         yield
     finally:
         stop.set()
         t.join()
+        if suppress_output:
+            sys.stdout, sys.stderr = old_stdout, old_stderr
+            devnull.close()
 
 
 def _get_console():
@@ -221,7 +230,7 @@ def chat_command(args):
     _print_header(console, vector_store_path)
     _print_status(console, "Commands: /help, /sources on|off, /feedback y|n, /exit")
 
-    with _loading_spinner("Loading models"):
+    with _loading_spinner("Loading models", suppress_output=True):
         agent, memory = _create_agent(vector_store_path)
     show_sources = args.show_sources
     last_response = None
