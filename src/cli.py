@@ -339,6 +339,10 @@ def build_parser():
 
 
 def main(argv=None):
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+
     parser = build_parser()
     args = parser.parse_args(argv)
 

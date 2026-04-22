@@ -101,3 +101,11 @@ def test_chat_prompt_uses_lightning_symbol():
     from src import cli
     source = inspect.getsource(cli.chat_command)
     assert "⚡" in source
+
+
+def test_main_reconfigures_stdout_on_windows():
+    import inspect
+    from src import cli
+    source = inspect.getsource(cli.main)
+    assert "reconfigure" in source
+    assert "utf-8" in source
