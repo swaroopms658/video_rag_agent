@@ -228,7 +228,7 @@ def chat_command(args):
 
     while True:
         try:
-            query = input("\n⚡ ").strip()
+            query = input("\n➲ ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break

@@ -96,11 +96,11 @@ def test_print_status_has_dot_prefix(capsys):
     assert "Loading store..." in captured.out
 
 
-def test_chat_prompt_uses_lightning_symbol():
+def test_chat_prompt_uses_arrow_symbol():
     import inspect
     from src import cli
     source = inspect.getsource(cli.chat_command)
-    assert "⚡" in source
+    assert "➲" in source
 
 
 def test_main_reconfigures_stdout_on_windows():
