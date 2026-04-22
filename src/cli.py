@@ -221,7 +221,8 @@ def chat_command(args):
     _print_header(console, vector_store_path)
     _print_status(console, "Commands: /help, /sources on|off, /feedback y|n, /exit")
 
-    agent, memory = _create_agent(vector_store_path)
+    with _loading_spinner("Loading models"):
+        agent, memory = _create_agent(vector_store_path)
     show_sources = args.show_sources
     last_response = None
 
@@ -381,6 +382,17 @@ def main(argv=None):
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
+        sys.stdin.reconfigure(encoding="utf-8")
+
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+    os.environ.setdefault("HUGGINGFACE_HUB_VERBOSITY", "error")
+
+    import logging
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+    logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+    logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
     parser = build_parser()
     args = parser.parse_args(argv)
