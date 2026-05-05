@@ -6,6 +6,6 @@ gpt4all
 torch
 transformers
 python-dotenv
-opencv-python
 Pillow
 requests
+rich

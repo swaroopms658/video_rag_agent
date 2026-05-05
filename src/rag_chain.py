@@ -3,14 +3,24 @@ import time
 import requests
 from sentence_transformers import SentenceTransformer
 from src.agent import SimpleRetriever
+from src.answer_cache import AnswerCache
 from src.key_manager import KeyManager
+
+RETRIEVAL_CONFIDENCE_THRESHOLD = 0.35
+
 
 class AgenticRAG:
     def __init__(self, vector_store_path):
         self.retriever = SimpleRetriever(vector_store_path)
-        self.embed_model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.embed_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         self.key_manager = KeyManager()
         self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
+        self.cache = AnswerCache()
+        self.last_response_meta = {
+            "cache_hit": False,
+            "estimated_llm_calls_saved": 0,
+            "low_confidence": False,
+        }
 
     def groq_generate(self, prompt):
         retries = 3
@@ -24,12 +34,12 @@ class AgenticRAG:
                 "Content-Type": "application/json"
             }
             data = {
-                "model": "llama-3.1-8b-instant", # Switched to 8B for speed/quota
+                "model": "llama-3.1-8b-instant",
                 "messages": [
                     {"role": "user", "content": prompt}
                 ],
                 "max_tokens": 300,
-                "temperature": 0.7
+                "temperature": 0.3
             }
             
             try:
@@ -54,15 +64,102 @@ class AgenticRAG:
         
         raise RuntimeError("Create Failed after retries (Rate Limits).")
 
-    def get_answer_with_context(self, query):
-        retrieved_items = self.retriever.retrieve(query, self.embed_model, top_k=3)
+    def groq_try(self, prompt):
+        """Single-attempt Groq call with short timeout; returns None on any failure."""
+        key = self.key_manager.get_current_key()
+        if not key:
+            return None
+        try:
+            response = requests.post(
+                self.endpoint,
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={
+                    "model": "llama-3.1-8b-instant",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 10,
+                    "temperature": 0.0,
+                },
+                timeout=8,
+            )
+            if response.status_code == 200:
+                return response.json()["choices"][0]["message"]["content"]
+            return None
+        except Exception:
+            return None
+
+    def get_answer_with_context(self, query, boost_ids=None, trace=None):
+        def _t(step):
+            if trace:
+                trace(step)
+
+        _t("retrieving")
+        retrieved_items = self.retriever.retrieve(
+            query,
+            self.embed_model,
+            top_k=3,
+            boost_ids=boost_ids,
+        )
         contexts = [item[0] for item in retrieved_items]
         scores = [item[1] for item in retrieved_items]
         avg_score = sum(scores) / len(scores) if scores else 0.0
-        
+
+        if avg_score < RETRIEVAL_CONFIDENCE_THRESHOLD:
+            self.last_response_meta = {
+                "cache_hit": False,
+                "estimated_llm_calls_saved": 0,
+                "low_confidence": True,
+            }
+            return (
+                "I couldn't find relevant information in the lecture transcript to answer this confidently. "
+                "Try rephrasing or asking about a specific topic from the lecture.",
+                contexts,
+                avg_score,
+            )
+
+        _t("cache_check")
+        cached = self.cache.lookup(query, contexts)
+        if cached:
+            _t("cache_hit")
+            self.last_response_meta = {
+                "cache_hit": True,
+                "estimated_llm_calls_saved": 1,
+                "low_confidence": False,
+            }
+            return cached["answer"], contexts, avg_score
+
+        _t("cache_miss")
         context_text = "\n\n".join(contexts)
-        prompt = f"Answer the question based on the context below:\n{context_text}\n\nQuestion: {query}\nAnswer:"
+        prompt = f"""
+You are an agentic lecture assistant operating on retrieved transcript evidence.
+
+Follow this process:
+1. Read the retrieved transcript chunks carefully.
+2. Synthesize only the information supported by the transcript.
+3. If the context is insufficient, say so explicitly instead of guessing.
+4. Answer concisely and clearly.
+
+TRANSCRIPT CONTEXT:
+{context_text}
+
+QUESTION:
+{query}
+
+ANSWER:
+""".strip()
+        _t("llm_call")
         answer = self.groq_generate(prompt)
+        _t("llm_done")
+        self.cache.store(
+            query,
+            contexts,
+            answer,
+            metadata={"avg_retrieval_score": avg_score},
+        )
+        self.last_response_meta = {
+            "cache_hit": False,
+            "estimated_llm_calls_saved": 0,
+            "low_confidence": False,
+        }
         return answer, contexts, avg_score
 
     def run(self, query):

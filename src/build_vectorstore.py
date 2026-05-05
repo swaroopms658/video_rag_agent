@@ -1,24 +1,79 @@
-from sentence_transformers import SentenceTransformer
+import re
 import pickle
 import os
+from sentence_transformers import SentenceTransformer
 
-def chunk_text(text, chunk_size=1000, overlap=100):
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end])
-        start += chunk_size - overlap
-    return [c for c in chunks if c.strip()]
+_TS_RE = re.compile(
+    r'^\[(\d+):(\d{2}):(\d{2}\.\d+)\s*-->\s*(\d+):(\d{2}):(\d{2}\.\d+)\]\s*(.*)'
+)
+
+
+def _parse_time(h, m, s):
+    return int(h) * 3600 + int(m) * 60 + float(s)
+
+
+def _load_segments(path):
+    """Return list of (text, start_sec, end_sec). Falls back to (text, None, None) for plain text."""
+    segments = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            m = _TS_RE.match(line)
+            if m:
+                start = _parse_time(m.group(1), m.group(2), m.group(3))
+                end = _parse_time(m.group(4), m.group(5), m.group(6))
+                segments.append((m.group(7).strip(), start, end))
+            else:
+                segments.append((line, None, None))
+    return segments
+
+
+def _chunk_segments(segments, chunk_size=1000, overlap=100):
+    """Produce overlapping text chunks with (start_sec, end_sec) timestamp spans."""
+    has_ts = any(s[1] is not None for s in segments)
+
+    # Build a flat character buffer tracking each segment's char range and timestamps
+    full_text = ""
+    seg_map = []  # (char_start, char_end, start_sec, end_sec)
+    for text, start, end in segments:
+        cs = len(full_text)
+        full_text += text + " "
+        seg_map.append((cs, len(full_text), start, end))
+
+    chunks, timestamps = [], []
+    pos = 0
+    while pos < len(full_text):
+        end_pos = min(pos + chunk_size, len(full_text))
+        chunk = full_text[pos:end_pos].strip()
+        if chunk:
+            chunks.append(chunk)
+            if has_ts:
+                in_range = [(s, e) for cs, ce, s, e in seg_map
+                            if s is not None and e is not None and cs < end_pos and ce > pos]
+                if in_range:
+                    timestamps.append((min(s for s, _ in in_range), max(e for _, e in in_range)))
+                else:
+                    timestamps.append(None)
+            else:
+                timestamps.append(None)
+        pos += chunk_size - overlap
+
+    return chunks, timestamps
+
 
 def create_embeddings(transcript_path, vector_store_path):
     model = SentenceTransformer('all-MiniLM-L6-v2')
-    with open(transcript_path, "r", encoding="utf-8") as f:
-        text = f.read()
-    chunks = chunk_text(text)
+    segments = _load_segments(transcript_path)
+    chunks, chunk_timestamps = _chunk_segments(segments)
     print(f"Created {len(chunks)} chunks from transcript.")
     embeddings = model.encode(chunks, show_progress_bar=True)
-    vector_store = {"chunks": chunks, "embeddings": embeddings}
+    vector_store = {
+        "chunks": chunks,
+        "embeddings": embeddings,
+        "timestamps": chunk_timestamps,
+    }
     os.makedirs(os.path.dirname(vector_store_path), exist_ok=True)
     with open(vector_store_path, "wb") as f:
         pickle.dump(vector_store, f)

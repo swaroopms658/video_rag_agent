@@ -16,7 +16,6 @@ dependencies = [
     "torch",
     "transformers",
     "python-dotenv",
-    "opencv-python",
     "Pillow",
     "requests",
     "rich",

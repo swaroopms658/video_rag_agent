@@ -1,383 +1,152 @@
-# Agentic-VideoRAG: An Enhanced and Cost-Aware Framework for Scalable Video Retrieval
+# Agentic Lecture RAG
 
-[![Journal](https://img.shields.io/badge/Journal-EAAI--2026-blue)](https://www.sciencedirect.com/journal/engineering-applications-of-artificial-intelligence)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Text-only retrieval-augmented generation system for lecture understanding. The project is aligned to these six objectives:
 
-**Agentic-VideoRAG** is a high-performance, cost-aware multimodal Retrieval-Augmented Generation (RAG) system designed for edge-deployed engineering environments. It intelligently orchestrates audio transcripts and visual frames using an agentic decision-making layer and a **Reinforcement Learning from Human Feedback (RLHF)** active learning memory loop.
+1. To develop an agentic reasoning framework for text-based lecture understanding.
+2. To optimize automatic speech recognition for edge computing environments.
+3. To convert lecture audio into structured and searchable textual knowledge.
+4. To implement a cost-aware caching mechanism for efficient inference.
+5. To incorporate feedback-driven memory for improved text retrieval and response quality.
+6. To evaluate the framework in terms of accuracy, latency, and cost efficiency.
 
----
+## Overview
 
-## 📄 Note on Journal Submission
-This repository contains the official implementation for the paper:  
-> **"Agentic-VideoRAG: A Cost-Aware and Explainable Framework for Video Retrieval in Edge Engineering Environments"**  
-> *Submitted to Elsevier: Engineering Applications of Artificial Intelligence (EAAI), 2026.*
+The repository implements a transcript-centric pipeline:
 
----
-
-## Architecture
-
-### Indexing Pipeline
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                      INPUT: data/lecture.mp4                     │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-             ▼                           ▼
-     [ AUDIO STREAM ]           [ VIDEO FRAMES ]
-      transcribe.py              extract_frames.py
-      Whisper (small)            OpenCV @ 1 frame / 5s
-             │                           │
-             ▼                           ▼
-   data/lecture_transcript.txt    data/frames/*.jpg
-             │                  + data/frames_metadata.json
-             │                           │
-             ▼                           ▼
-    build_vectorstore.py    generate_visual_embeddings.py
-    chunk_text()                  CLIP (clip-ViT-B-32)
-    size=1000, overlap=100        model.encode(images)
-    SentenceTransformer                   │
-    (all-MiniLM-L6-v2)                    │
-             │                            │
-             ▼                            ▼
-    data/vector_store.pkl    data/visual_vector_store.pkl
-    { chunks[], embeddings[] } { metadata[], embeddings[] }
-```
-
-### Query & Answer Flow
-
-```
-                         USER QUERY
-                              │
-               ┌──────────────┴───────────────┐
-               │                              │
-               ▼                              ▼
-      [ TEXT-ONLY RAG ]           [ MULTIMODAL RAG ]
-        rag_chain.py               multimodal_rag.py
-               │                              │
-               │                    ┌─────────┴─────────┐
-               │                    │                   │
-               ▼                    ▼                   ▼
-         embed (MiniLM)       embed (MiniLM)      embed (CLIP)
-         cosine_sim()         cosine_sim()        cosine_sim()
-         top-3 chunks         top-2 chunks        top-1 frame
-               │                    │            + memory boost
-               │                    └─────────┬─────────┘
-               │                              │
-               ▼                              ▼
-   ┌───────────────────┐         ┌────────────────────────┐
-   │  Groq LLM         │         │  Groq Vision LLM        │
-   │  llama-3.1-8b     │         │  llama-4-scout-17b      │
-   │  (text prompt)    │         │  (text + base64 images) │
-   └─────────┬─────────┘         └───────────┬────────────┘
-             │                               │
-             └───────────────┬───────────────┘
-                             ▼
-                          ANSWER
-                       + source citations
-                       + confidence score
-                             │
-                    ┌────────┴─────────┐
-                    │  USER FEEDBACK   │
-                    │    (y / n)       │
-                    └────────┬─────────┘
-                             │
-                             ▼
-                   data/rl_feedback.json
-                             │
-                             ▼
-                   RetrievalMemory
-                   batch-encodes past queries
-                   boosts matching sources (+0.2)
-                   on the next similar query
-```
-
-### Active Learning / Memory Loop
-
-```
-  New query arrives
-        │
-        ▼
-  RetrievalMemory.get_verified_contexts(query, threshold=0.85)
-        │
-        ├─ encode current query (MiniLM)
-        ├─ cosine_sim vs all pre-encoded past queries
-        │
-        ├─ sim > 0.85 ──YES──► return context_ids from that entry
-        │                               │
-        │                               ▼
-        │                   VisualRetriever: sims[i] += 0.2
-        │                   for each matching frame path
-        │
-        └─ sim ≤ 0.85 ──────────► normal retrieval, no boost
-```
-
----
-
-## Error Handling
-
-### API Rate Limits (429) — both `rag_chain.py` and `multimodal_rag.py`
-
-```
-POST /chat/completions
-        │
-        ├─ 200 OK ──────────────────► return answer
-        │
-        ├─ 429 Rate Limited
-        │       │
-        │       ├─ print warning with last 4 chars of key
-        │       ├─ wait: 20s × attempt  (text)
-        │       │         30s × attempt  (multimodal)
-        │       ├─ KeyManager.rotate_key() → next key in pool
-        │       └─ retry (max 3 attempts total)
-        │               │
-        │               └─ exhausted → raise RuntimeError
-        │
-        ├─ other HTTP error ─────────► raise RuntimeError (text)
-        │                              return error string (multimodal)
-        │
-        └─ network exception ────────► print, decrement retries
-```
-
-### Key Manager
-
-```
-.env loaded → GROQ_API_KEY_1, GROQ_API_KEY_2, GROQ_API_KEY
-        │
-        ├─ all empty? → "Warning: No API keys found"
-        │               get_current_key() returns None
-        │               groq_generate() raises RuntimeError
-        │
-        └─ only 1 key? → rotate_key() warns, stays on same key
-```
-
-### Other Failure Points
-
-| Location | Failure | Behaviour |
-|----------|---------|-----------|
-| `extract_frames.py` | `data/lecture.mp4` missing | Prints error, returns |
-| `generate_visual_embeddings.py` | `frames_metadata.json` missing | Prints error, returns |
-| `evaluate.py` / `evaluate_multimodal.py` | `eval_set.json` missing | Prints error, returns |
-| `interactive_demo.py` | `.pkl` store missing | Caught by `except`, prints `Initialization Failed`, exits |
-| `retrieval_memory.py` | Corrupt line in `rl_feedback.json` | `except: continue` — line skipped silently |
-| `generate_eval_set.py` | LLM returns non-JSON | `except` catches `json.loads` error, skips that chunk |
-
----
+1. `src/transcribe.py`
+   Converts lecture audio or video into text using Whisper with edge-oriented defaults.
+2. `src/build_vectorstore.py`
+   Chunks the transcript and creates sentence embeddings for retrieval.
+3. `src/rag_chain.py`
+   Retrieves top transcript chunks, applies memory-based boosting, and generates grounded answers.
+4. `src/answer_cache.py`
+   Stores previous query-context-answer results to reduce repeated LLM calls.
+5. `src/retrieval_memory.py`
+   Reuses successful historical context IDs for similar future queries.
+6. `src/evaluate.py`
+   Measures generated-answer similarity against a reference QA set.
 
 ## Project Structure
 
-```
+```text
 lecture_rag_agent/
-├── .env                              # API keys — never commit this
-├── .env.example                      # Template
-├── requirements.txt
-├── README.md
 ├── data/
-│   ├── lecture.mp4                   # Your input video (not tracked)
-│   ├── lecture_transcript.txt        # Output of transcribe.py
-│   ├── frames/                       # Output of extract_frames.py
-│   ├── frames_metadata.json          # Frame index + timestamps
-│   ├── vector_store.pkl              # Text embeddings
-│   ├── visual_vector_store.pkl       # Image embeddings
-│   ├── eval_set.json                 # QA evaluation pairs
-│   └── rl_feedback.json              # RLHF feedback log
-└── src/
-    ├── transcribe.py                 # Whisper: audio → transcript
-    ├── build_vectorstore.py          # Transcript → text embeddings
-    ├── extract_frames.py             # Video → frame images
-    ├── generate_visual_embeddings.py # Frames → CLIP embeddings
-    ├── agent.py                      # SimpleRetriever (cosine sim)
-    ├── key_manager.py                # Groq API key pool + rotation
-    ├── rag_chain.py                  # AgenticRAG (text-only)
-    ├── multimodal_rag.py             # MultimodalRAG (text + vision)
-    ├── retrieval_memory.py           # RLHF memory + source boosting
-    ├── interactive_demo.py           # CLI entry point
-    ├── generate_eval_set.py          # Auto-generate text QA pairs
-    ├── generate_visual_eval_set.py   # Auto-generate visual QA pairs
-    ├── evaluate.py                   # Evaluate text-only RAG
-    ├── evaluate_multimodal.py        # Evaluate multimodal RAG
-    └── eval_utils.py                 # Shared: load_eval_set, calculate_similarity
+│   ├── lecture_transcript.txt
+│   ├── vector_store.pkl
+│   ├── eval_set.json
+│   ├── rl_feedback.json
+│   └── answer_cache.json
+├── src/
+│   ├── agent.py
+│   ├── answer_cache.py
+│   ├── build_vectorstore.py
+│   ├── evaluate.py
+│   ├── generate_eval_set.py
+│   ├── interactive_demo.py
+│   ├── key_manager.py
+│   ├── rag_chain.py
+│   ├── retrieval_memory.py
+│   └── transcribe.py
+└── requirements.txt
 ```
 
----
+## Setup
 
-## Setup Instructions
-
-### 1. Prerequisites
+### 1. Requirements
 
 - Python 3.10+
-- `ffmpeg` on PATH — required by Whisper ([download](https://ffmpeg.org/download.html))
-- A Groq API key — free at [console.groq.com](https://console.groq.com)
+- `ffmpeg` on `PATH`
+- Groq API key in `.env`
 
-### 2. Clone and create virtual environment
+Example `.env`:
+
+```env
+GROQ_API_KEY=your_key_here
+```
+
+Optional ASR tuning for edge deployment:
+
+```env
+WHISPER_MODEL=base
+WHISPER_DEVICE=cpu
+```
+
+### 2. Install dependencies
 
 ```bash
-git clone <your-repo-url>
-cd lecture_rag_agent
-
 python -m venv venv
-
-# Windows
 venv\Scripts\activate
-
-# macOS / Linux
-source venv/bin/activate
-```
-
-### 3. Install PyTorch first
-
-Visit [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/) and pick the right command for your OS/GPU. Example for CPU-only:
-
-```bash
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-```
-
-### 4. Install remaining dependencies
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 5. Configure API keys
+## Pipeline
+
+### Step 1. Transcribe lecture audio
 
 ```bash
-cp .env.example .env
+python -c "from src.transcribe import transcribe_audio; transcribe_audio('data/lecture.mp4', 'data/lecture_transcript.txt')"
 ```
 
-Edit `.env`:
-
-```env
-GROQ_API_KEY_1=gsk_your_primary_key_here
-GROQ_API_KEY_2=gsk_your_backup_key_here    # optional — used on rate limit
-```
-
-### 6. Add your lecture video
-
-```bash
-mkdir data
-# copy your video to:
-# data/lecture.mp4
-```
-
----
-
-## Running the Pipeline
-
-Run these steps in order the first time. Once `.pkl` stores exist, skip straight to Step 5.
-
-### Step 1 — Transcribe audio
-
-```bash
-python -m src.transcribe
-```
-
-Or from a script:
-
-```python
-from src.transcribe import transcribe_audio
-transcribe_audio('data/lecture.mp4', 'data/lecture_transcript.txt')
-```
-
-Output: `data/lecture_transcript.txt`
-
-### Step 2 — Build text vector store
+### Step 2. Build the text vector store
 
 ```bash
 python -c "from src.build_vectorstore import create_embeddings; create_embeddings('data/lecture_transcript.txt', 'data/vector_store.pkl')"
 ```
 
-Output: `data/vector_store.pkl`
+### Step 3. Run the interactive CLI
 
-### Step 3 — Extract video frames
-
-```bash
-python -m src.extract_frames
-```
-
-Output: `data/frames/*.jpg`, `data/frames_metadata.json`
-
-### Step 4 — Generate visual embeddings
+After installation, you can launch the terminal assistant directly:
 
 ```bash
-python -m src.generate_visual_embeddings
+agentic-video-rag
 ```
 
-Output: `data/visual_vector_store.pkl`
+Explicit chat mode:
 
-### Step 5 — Launch interactive demo
+```bash
+agentic-video-rag chat
+```
+
+Single-question mode:
+
+```bash
+agentic-video-rag ask "What is retrieval augmented generation?"
+```
+
+Legacy module entrypoint still works:
 
 ```bash
 python -m src.interactive_demo
 ```
 
-You will be prompted to:
-1. Select dataset (original or second video if indexed)
-2. Choose mode: **Text-Only RAG** or **Multimodal RAG**
-3. Ask a question about the lecture
-4. Rate the answer (`y` / `n`) — this trains the memory
-
----
-
-## Evaluation
-
-### Generate QA pairs
+### Step 4. Generate an evaluation set
 
 ```bash
-# From audio transcript (10 pairs)
 python -m src.generate_eval_set
-
-# From visual frames (5 pairs, appended to same file)
-python -m src.generate_visual_eval_set
 ```
 
-### Run benchmarks
+### Step 5. Evaluate the system
 
 ```bash
-# Text-only RAG
 python -m src.evaluate
-
-# Multimodal RAG
-python -m src.evaluate_multimodal
 ```
 
-Metrics:
+## Implementation Notes
 
-| Metric | Description |
-|--------|-------------|
-| Average Cosine Similarity | Semantic closeness of generated vs ground truth answer |
-| Exact Match Score | Strict lowercase string match rate |
+- Agentic reasoning:
+  `src/rag_chain.py` grounds answers strictly in retrieved transcript chunks and instructs the model to avoid unsupported guesses.
+- Edge-oriented ASR:
+  `src/transcribe.py` uses configurable Whisper settings with CPU-safe defaults.
+- Searchable text knowledge:
+  `src/build_vectorstore.py` creates chunked sentence embeddings for transcript retrieval.
+- Cost-aware inference:
+  `src/answer_cache.py` caches answers by normalized query and retrieved context signature.
+- Feedback-driven memory:
+  `src/retrieval_memory.py` boosts transcript chunks that were previously validated for similar queries.
+- Evaluation:
+  `src/evaluate.py` reports cosine similarity and exact match over the QA set.
 
----
+## Notes
 
-## Models Used
-
-| Component | Model | Notes |
-|-----------|-------|-------|
-| Transcription | `whisper small` | Upgrade to `medium` for better accuracy on technical content |
-| Text embedding | `all-MiniLM-L6-v2` | Fast, 384-dim, good for sentence-level retrieval |
-| Image embedding | `clip-ViT-B-32` | Cross-modal: text queries can retrieve images |
-| Text LLM | `llama-3.1-8b-instant` via Groq | Fast, low quota usage |
-| Vision LLM | `meta-llama/llama-4-scout-17b-16e-instruct` via Groq | Accepts base64 images inline |
-
----
-
-## Adding a Second Video
-
-```bash
-# 1. Transcribe
-python -c "from src.transcribe import transcribe_audio; transcribe_audio('data/7.mp4', 'data/transcript_7.txt')"
-
-# 2. Build text store
-python -c "from src.build_vectorstore import create_embeddings; create_embeddings('data/transcript_7.txt', 'data/vector_store_7.pkl')"
-
-# 3. Edit VIDEO_PATH in src/extract_frames.py to 'data/7.mp4'
-#    Edit OUTPUT_PATH in src/generate_visual_embeddings.py to 'data/visual_vector_store_7.pkl'
-
-# 4. Extract frames + visual embeddings
-python -m src.extract_frames
-python -m src.generate_visual_embeddings
-```
-
-The interactive demo auto-detects `data/vector_store_7.pkl` and offers it as option 2.
+- The repository supports transcript-based lecture retrieval and answering.
+- Cache and feedback files are generated locally under `data/`.

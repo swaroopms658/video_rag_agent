@@ -66,18 +66,20 @@ _SPARK_FRAMES = ["✶", "✸", "✺", "✸", "✶", " "]
 @contextmanager
 def _loading_spinner(message: str = "Retrieving context", suppress_output: bool = False):
     stop = threading.Event()
+    start_time = time.time()
     real_stdout = getattr(sys, "__stdout__", sys.stdout)
     write_target = real_stdout if suppress_output else sys.stdout
 
     def _run():
         i = 0
         while not stop.is_set():
+            elapsed = int(time.time() - start_time)
             frame = _SPARK_FRAMES[i % len(_SPARK_FRAMES)]
-            write_target.write(f"\r  {frame}  {message}...")
+            write_target.write(f"\r  {frame}  {message}... {elapsed}s")
             write_target.flush()
             time.sleep(0.12)
             i += 1
-        clear = " " * (len(message) + 20)
+        clear = " " * (len(message) + 30)
         write_target.write(f"\r{clear}\r")
         write_target.flush()
 
@@ -95,6 +97,9 @@ def _loading_spinner(message: str = "Retrieving context", suppress_output: bool 
         if suppress_output:
             sys.stdout, sys.stderr = old_stdout, old_stderr
             devnull.close()
+        elapsed = int(time.time() - start_time)
+        write_target.write(f"  ·  {message} — {elapsed}s\n")
+        write_target.flush()
 
 
 def _get_console():
@@ -140,6 +145,42 @@ def _print_status(console, message: str):
         print(f"  · {message}")
 
 
+_PIPELINE_STEPS = {
+    "received":       (" Received input",                            "bold white"),
+    "memory_check":   (" Checking retrieval memory...",              "dim"),
+    "memory_boost":   (" Memory boost applied — reusing verified chunks", "cyan"),
+    "retrieving":     (" Retrieving transcript chunks...",           "dim"),
+    "cache_check":    (" Checking answer cache...",                  "dim"),
+    "cache_hit":      (" Cache HIT — skipping LLM call",            "green"),
+    "cache_miss":     (" New query — no cache match",                "yellow"),
+    "llm_call":       (" Sending to LLM...",                        "dim"),
+    "llm_done":       (" Got response",                              "dim"),
+    "verify":         (" Cross-verifying against transcript...",     "dim"),
+    "faithful":       (" Faithful ✓ — sending final response",      "green"),
+    "hallucination":  (" Caution: answer may not be grounded  ✗",   "red"),
+    "cached_reply":   (" Sending cached response",                   "green"),
+    "low_confidence": (" Low retrieval confidence — skipping LLM",  "yellow"),
+}
+
+
+def _print_step(console, step: str, override_msg: str = "", t0: float = None):
+    msg, style = _PIPELINE_STEPS.get(step, (f" {step}", "dim"))
+    if override_msg:
+        msg = f" {override_msg}"
+    elapsed = f"  [dim]{int(time.time() - t0)}s[/dim]" if t0 is not None else ""
+    elapsed_plain = f"  {int(time.time() - t0)}s" if t0 is not None else ""
+    if console:
+        console.print(f"  [dim]↳[/dim][{style}]{msg}[/{style}]{elapsed}")
+    else:
+        print(f"  ↳{msg}{elapsed_plain}")
+
+
+def _make_trace(console, t0: float):
+    def trace(step):
+        _print_step(console, step, t0=t0)
+    return trace
+
+
 def _print_answer(console, answer: str):
     if console:
         console.print(f"\n[bold blue]◈ Agentic Video RAG[/bold blue]")
@@ -151,6 +192,26 @@ def _print_answer(console, answer: str):
         for line in answer.splitlines():
             print(f"  {line}")
         print()
+
+
+def _print_accuracy(console, retrieval_score: float, faith):
+    if faith is None:
+        faith_label, faith_style = "Cached", "dim"
+    elif faith is False:
+        faith_label, faith_style = "—", "dim"
+    elif faith == 1.0:
+        faith_label, faith_style = "✓ Faithful", "green"
+    elif faith == 0.0:
+        faith_label, faith_style = "✗ Ungrounded", "red"
+    else:
+        faith_label, faith_style = "—", "dim"
+    if console:
+        console.print(
+            f"  [dim]Retrieval confidence:[/dim] [bold]{retrieval_score:.1%}[/bold]"
+            f"  [dim]|  Faithfulness:[/dim] [{faith_style}]{faith_label}[/{faith_style}]"
+        )
+    else:
+        print(f"  Retrieval confidence: {retrieval_score:.1%}  |  Faithfulness: {faith_label}")
 
 
 def _print_sources(console, contexts: Iterable[str], score: float):
@@ -192,7 +253,7 @@ def _log_feedback(query: str, answer: str, score: float, contexts, reward: int):
         "mode": "TEXT",
         "query": query,
         "answer": answer,
-        "score": score,
+        "score": float(score),
         "reward": reward,
         "context_ids": RetrievalMemory.make_context_ids(contexts),
     }
@@ -210,7 +271,7 @@ def _create_agent(vector_store_path: str):
             f"Vector store not found at '{vector_store_path}'. Run build-store first."
         )
     agent = AgenticRAG(vector_store_path)
-    memory = RetrievalMemory()
+    memory = RetrievalMemory(encoder=agent.embed_model)
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     return agent, memory
 
@@ -228,12 +289,34 @@ def chat_command(args):
     console = _get_console()
     vector_store_path = _resolve_vector_store(args.vector_store)
     _print_header(console, vector_store_path)
-    _print_status(console, "Commands: /help, /sources on|off, /feedback y|n, /exit")
+    _print_status(console, (
+        "/sources on|off — view transcript chunks"
+        "  ·  /feedback y|n — rate last answer"
+        "  ·  /help  ·  /exit"
+    ))
 
-    with _loading_spinner("Loading models", suppress_output=True):
-        agent, memory = _create_agent(vector_store_path)
+    # Load models in background — prompt is available immediately
+    _loaded: dict = {}
+    _load_error: list = [None]
+    _load_done = threading.Event()
+
+    def _bg_load():
+        try:
+            from src.eval_utils import calculate_faithfulness as _cf
+            _a, _m = _create_agent(vector_store_path)
+            _loaded["agent"] = _a
+            _loaded["memory"] = _m
+            _loaded["faithfulness"] = _cf
+        except Exception as exc:
+            _load_error[0] = exc
+        finally:
+            _load_done.set()
+
+    threading.Thread(target=_bg_load, daemon=True).start()
+
     show_sources = args.show_sources
     last_response = None
+    agent = memory = calculate_faithfulness = None
 
     while True:
         try:
@@ -281,14 +364,47 @@ def chat_command(args):
             _print_status(console, f"Feedback logged with reward {reward}.")
             continue
 
-        with _loading_spinner("Retrieving context"):
-            answer, contexts, score, verified_ids = _run_query(agent, memory, query)
-        if verified_ids:
-            _print_status(console, f"Memory boost reused {len(verified_ids)} verified chunks.")
+        # Ensure models are ready before first real query
+        if agent is None:
+            if not _load_done.is_set():
+                with _loading_spinner("Loading models"):
+                    _load_done.wait()
+            if _load_error[0]:
+                raise _load_error[0]
+            agent = _loaded["agent"]
+            memory = _loaded["memory"]
+            calculate_faithfulness = _loaded["faithfulness"]
 
-        cache_status = "HIT" if agent.last_response_meta["cache_hit"] else "MISS"
-        _print_status(console, f"Cache status: {cache_status}")
+        t0 = time.time()
+        _print_step(console, "received", override_msg=f'Received: "{query}"', t0=t0)
+
+        _print_step(console, "memory_check", t0=t0)
+        verified_ids = memory.get_verified_contexts(query)
+        if verified_ids:
+            _print_step(console, "memory_boost", t0=t0)
+
+        trace = _make_trace(console, t0)
+        answer, contexts, score = agent.get_answer_with_context(
+            query, boost_ids=verified_ids, trace=trace
+        )
+
+        if agent.last_response_meta["cache_hit"]:
+            _print_step(console, "cached_reply", t0=t0)
+            faith = None
+        elif agent.last_response_meta.get("low_confidence"):
+            _print_step(console, "low_confidence", t0=t0)
+            faith = False
+        else:
+            _print_step(console, "verify", t0=t0)
+            raw_faith = calculate_faithfulness(agent.groq_try, answer, contexts)
+            faith = raw_faith if raw_faith is not None else False
+            if faith == 1.0:
+                _print_step(console, "faithful", t0=t0)
+            elif faith == 0.0:
+                _print_step(console, "hallucination", t0=t0)
+
         _print_answer(console, answer)
+        _print_accuracy(console, score, faith)
         if show_sources:
             _print_sources(console, contexts, score)
 
@@ -393,10 +509,25 @@ def main(argv=None):
         sys.stderr.reconfigure(encoding="utf-8")
         sys.stdin.reconfigure(encoding="utf-8")
 
+    # Wrap stdout/stderr to drop HF Hub's direct-print auth warning (bypasses warnings module)
+    _hf_msg = "unauthenticated requests to the HF Hub"
+
+    class _HFFilter:
+        def __init__(self, s): self._s = s
+        def write(self, t):
+            if _hf_msg not in t: self._s.write(t)
+        def flush(self): self._s.flush()
+        def __getattr__(self, n): return getattr(self._s, n)
+
+    sys.stdout = _HFFilter(sys.stdout)
+    sys.stderr = _HFFilter(sys.stderr)
+
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
     os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
     os.environ.setdefault("HUGGINGFACE_HUB_VERBOSITY", "error")
+    # Skip CUDA device enumeration — saves 3-5s on Windows even without a GPU
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 
     import logging
     import warnings

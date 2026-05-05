@@ -22,6 +22,9 @@ venv/
 __pycache__/
 *.py[cod]
 
+# Generated runtime artifacts
+data/answer_cache.json
+
 # LaTeX/Overleaf temporary files (optional but good practice)
 *.aux
 *.log

@@ -6,9 +6,9 @@ from src.agent import make_chunk_id
 FEEDBACK_FILE = "data/rl_feedback.json"
 
 class RetrievalMemory:
-    def __init__(self):
+    def __init__(self, encoder=None):
         self.memory = []
-        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+        self.encoder = encoder if encoder is not None else SentenceTransformer('all-MiniLM-L6-v2')
         self.load_memory()
 
     def load_memory(self):
