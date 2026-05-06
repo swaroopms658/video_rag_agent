@@ -23,7 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
-RESULTS_DIR = "analysis/results"
+RESULTS_DIR = "analysis/results_115"
 COLD_START_CSV = "analysis/cold_start.csv"
 OUT_DIR = "analysis/figures"
 

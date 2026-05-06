@@ -1,0 +1,58 @@
+{
+  "_comment": "YouTube video IDs per domain for LectureRAG-75. Each domain needs ~15 QA pairs. Transcripts will be fetched from YouTube auto-captions. All videos are from official NPTEL channels.",
+  "domains": {
+    "machine_learning": {
+      "description": "Machine Learning fundamentals — NPTEL course by Prof. Balaraman Ravindran (IIT Madras)",
+      "playlist": "PLrpK1inhO61W5Y5zw6QIq7-lXl-7YUw-g",
+      "video_ids": [
+        "fC7V8QsPBec",
+        "OTAR0kT1swg",
+        "HTSCbxSxs-g",
+        "9vMpHk44XXo"
+      ],
+      "target_qa_pairs": 15
+    },
+    "computer_networks": {
+      "description": "Computer Networks — NPTEL course by Prof. Sujoy Ghosh (IIT Kharagpur)",
+      "video_ids": [
+        "UXMIxCYZu8o",
+        "5D67Qy1tPLY",
+        "HExZQZFkVY4",
+        "AYdF7b3nMto"
+      ],
+      "target_qa_pairs": 15
+    },
+    "database_systems": {
+      "description": "Database Management Systems — NPTEL course by Prof. Partha Pratim Das (IIT Kharagpur)",
+      "playlist": "PLrpK1inhO61UqRpoP3e1sxwUnzNAJ_Tcj",
+      "video_ids": [
+        "OWX4RvijwLw",
+        "rrG7azSlyWI",
+        "s1Jb-NJNpT4",
+        "rbwXdTsCk2c"
+      ],
+      "target_qa_pairs": 15
+    },
+    "operating_systems": {
+      "description": "Operating Systems — NPTEL course by Prof. Chester Rebeiro (IIT Madras)",
+      "playlist": "PLEAYkSg4uSQ2PAch478muxnoeTNz_QeUJ",
+      "video_ids": [
+        "cngXL3_Pros",
+        "YGe9e9jiK8A",
+        "xSfW2SSN0jM",
+        "Se1iohX6N9A"
+      ],
+      "target_qa_pairs": 15
+    }
+  },
+  "existing_domains": {
+    "generative_ai": {
+      "description": "Generative AI and Agentic AI — local lecture recordings",
+      "transcript_files": [
+        "data/transcript_7.txt"
+      ],
+      "target_qa_pairs": 15,
+      "current_qa_pairs": 16
+    }
+  }
+}
