@@ -21,7 +21,7 @@ from typing import Optional
 
 import numpy as np
 
-RESULTS_DIR = "analysis/results"
+RESULTS_DIR = "analysis/results_test"
 METRICS = [
     ("hit_at_1",     "H@1",     ".3f"),
     ("hit_at_5",     "H@5",     ".3f"),

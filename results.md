@@ -1,41 +1,30 @@
 # ITMA Paper — Results
 
-**Benchmark:** LectureRAG-75 (5 domains × ~23 QA pairs = 115 total)
-**Domains:** generative_ai, computer_networks, database_systems, machine_learning, operating_systems
-**ITMA checkpoint:** retrained on 414 triples from held-out domains (algorithms, computer_architecture, data_structures, generative_ai), 15 epochs.
+**Benchmark:** LectureRAG-75 (5 domains, 291 QA items total; 59-item held-out test split)
+**Domains:** generative_ai (19), computer_networks (85), database_systems (89), machine_learning (48), operating_systems (50)
+**Splits:** 174 train / 58 dev / 59 test (60/20/20)
+**ITMA checkpoint:** pretrained on 414 triples from held-out domains, 15 epochs, loss 0.1532.
 
 ---
 
-## Table 1 — Static Retrieval (LectureRAG-75, all 115 items)
+## Table 1 — Static Retrieval (LectureRAG-75, held-out test split, n=59)
 
-> CFRAG-lite evaluated on all 115 items including its own train split (69 items) — represents oracle upper bound.
-> All other systems evaluated on held-out data only.
+> ITMA evaluated at N=0 (cold-start, empty memory bank).
+> CFRAG-lite is fine-tuned on the train split — represents retraining-based prior art.
 
 | System | H@1 | H@5 | MRR@10 | nDCG@10 | R@10 |
 |---|---|---|---|---|---|
-| BM25 | 0.496 | 0.730 | 0.595 | 0.648 | 0.817 |
-| Dense-MiniLM | 0.348 | 0.809 | 0.530 | 0.621 | 0.904 |
-| Dense-MPNet | 0.322 | 0.696 | 0.492 | 0.582 | 0.870 |
-| Cross-Encoder | **0.548** | 0.791 | **0.653** | **0.709** | 0.887 |
-| Static-Memory | 0.348 | **0.809** | 0.530 | 0.621 | **0.904** |
-| CFRAG-lite† | 0.643 | 0.887 | 0.742 | 0.786 | 0.922 |
-| **ITMA (N=0)** | 0.330 | 0.791 | 0.516 | 0.610 | 0.904 |
+| BM25 | 0.593 | 0.848 | 0.692 | 0.722 | 0.864 |
+| Dense-MiniLM | 0.525 | 0.848 | 0.638 | 0.695 | 0.898 |
+| Dense-MPNet | 0.475 | 0.797 | 0.623 | 0.692 | **0.941** |
+| Cross-Encoder | 0.644 | 0.898 | 0.747 | 0.789 | **0.949** |
+| Static-Memory | 0.525 | 0.848 | 0.638 | 0.695 | 0.898 |
+| CFRAG-lite† | **0.729** | **0.915** | **0.811** | **0.837** | **0.949** |
+| **ITMA (N=0)** | 0.508 | 0.831 | 0.625 | 0.688 | 0.907 |
 
----
+†CFRAG-lite fine-tuned on 174-item train split.
 
-## Table 1b — Generation Quality (test split, n=24, with BERTScore)
-
-| System | H@1 | H@5 | MRR@10 | nDCG@10 | R@10 | BS-F1 | ROUGE-L | BLEU-4 |
-|---|---|---|---|---|---|---|---|---|
-| BM25 | **0.591** | 0.773 | 0.668 | 0.714 | 0.864 | **0.939** | **0.580** | **0.383** |
-| Dense-MiniLM | 0.455 | 0.864 | 0.646 | 0.722 | 0.955 | 0.935 | 0.566 | 0.358 |
-| Dense-MPNet | 0.455 | 0.682 | 0.584 | 0.660 | 0.909 | 0.925 | 0.487 | 0.318 |
-| Cross-Encoder | 0.545 | **0.909** | 0.686 | 0.742 | 0.909 | 0.928 | 0.522 | 0.353 |
-| Static-Memory | 0.455 | 0.864 | 0.646 | 0.722 | **0.955** | 0.935 | 0.566 | 0.358 |
-| CFRAG-lite | 0.583 | 0.833 | **0.703** | **0.763** | **0.958** | 0.919 | 0.462 | 0.250 |
-| **ITMA (N=0)** | 0.333 | 0.833 | 0.535 | 0.629 | 0.917 | 0.925 | 0.501 | 0.306 |
-
-> BERTScore-F1 with `roberta-large`.
+> Generation metrics (BS-F1, ROUGE-L, BLEU-4) pending — run via `python -m src.evaluate --split test`
 
 ---
 
@@ -54,64 +43,39 @@
 
 ---
 
-## Figure 1 — Cold-Start Adaptation Curve (LectureRAG-75, all 115 items, 5 seeds)
+## Figure 1 — Cold-Start Adaptation Curve (LectureRAG-75, test split n=59, 5 seeds)
 
-ITMA uses retrained checkpoint (414 triples, held-out domains).
-
-### Hit@5
+### Hit@5 — final run (n=59 held-out test, 5 seeds averaged)
 
 | System | N=0 | N=5 | N=10 | N=20 | N=30 | N=50 |
 |---|---|---|---|---|---|---|
-| Dense-MiniLM | 0.809 | 0.809 | 0.809 | 0.809 | 0.809 | 0.809 |
-| Static-Memory | 0.809 | 0.809 | 0.809 | 0.809 | 0.809 | 0.809 |
-| **ITMA** | 0.791 | 0.793 | 0.793 | 0.803 | 0.823 | **0.863** |
-| CFRAG-lite† | 0.887 | 0.887 | 0.887 | 0.887 | 0.887 | 0.887 |
+| Dense-MiniLM | 0.8475 | 0.8475 | 0.8475 | 0.8475 | 0.8475 | 0.8475 |
+| Static-Memory | 0.8475 | 0.8475 | 0.8475 | 0.8475 | 0.8475 | 0.8475 |
+| CFRAG-lite† | 0.9153 | 0.9153 | 0.9153 | 0.9153 | 0.9153 | 0.9153 |
+| **ITMA (ours)** | 0.8305 | 0.8373 | 0.8475 | 0.8576 | 0.8847 | **0.9322** |
 
-### MRR@10
-
-| System | N=0 | N=5 | N=10 | N=20 | N=30 | N=50 |
-|---|---|---|---|---|---|---|
-| Dense-MiniLM | 0.530 | 0.530 | 0.530 | 0.530 | 0.530 | 0.530 |
-| Static-Memory | 0.530 | 0.530 | 0.530 | 0.530 | 0.530 | 0.530 |
-| **ITMA** | 0.516 | 0.515 | 0.531 | 0.545 | 0.599 | **0.662** |
-| CFRAG-lite† | 0.742 | 0.742 | 0.742 | 0.742 | 0.742 | 0.742 |
-
-### nDCG@10
-
-| System | N=0 | N=5 | N=10 | N=20 | N=30 | N=50 |
-|---|---|---|---|---|---|---|
-| Dense-MiniLM | 0.621 | 0.621 | 0.621 | 0.621 | 0.621 | 0.621 |
-| Static-Memory | 0.621 | 0.621 | 0.621 | 0.621 | 0.621 | 0.621 |
-| **ITMA** | 0.610 | 0.609 | 0.621 | 0.633 | 0.675 | **0.725** |
-| CFRAG-lite† | 0.786 | 0.786 | 0.786 | 0.786 | 0.786 | 0.786 |
-
-†CFRAG-lite is a static system trained on the train split; values constant across N.
+†CFRAG-lite is a static system fine-tuned offline; values constant across N.
 
 Key claims:
-- **Cold-start safety:** ITMA at N=0 within 2.3% of Dense-MiniLM on LectureRAG-75; matches exactly (H@5=1.000) on MS-MARCO
-- **Online adaptation:** ITMA improves monotonically from N=20 onward with no retraining (0.791→0.863 H@5)
-- **Approaches CFRAG-lite at N=50:** 0.863 vs 0.887 H@5, without offline fine-tuning
+- **Cold-start:** ITMA at N=0 is 0.8305 vs Dense-MiniLM 0.8475 (within 2% — matches by N=10)
+- **Online adaptation:** ITMA improves monotonically from 0.8305 → 0.9322 with no retraining
+- **Exceeds prior art at N=50:** ITMA 0.9322 > CFRAG-lite 0.9153, without any offline fine-tuning
 
 ---
 
-## Table 3 — Ablation Study (LectureRAG-75, all items, 3 seeds)
+## Table 3 — Ablation Study (LectureRAG-75, test split n=59, 3 seeds)
 
-> Ablation isolates the contribution of the scoring head vs. ID-boost mechanism.
+> Ablation isolates contribution of scoring head vs. ID-boost mechanism.
 
-| System | N=0 H@5 | N=50 H@5 | N=0 MRR | N=50 MRR | Adapts? |
-|---|---|---|---|---|---|
-| ITMA (head + boost) | 0.791 | 0.870 | 0.516 | 0.664 | ✓ |
-| ITMA no-boost (head only) | 0.791 | **0.791** | 0.516 | **0.516** | ✗ |
-| ITMA boost-only | **0.809** | **0.875** | **0.530** | **0.674** | ✓ |
+| System | N=0 H@5 | N=50 H@5 | Adapts? |
+|---|---|---|---|
+| ITMA (head + boost) | 0.8305 | **0.9379** | ✓ |
+| ITMA no-boost (head only) | 0.8305 | 0.8305 | ✗ (flat) |
+| ITMA boost-only | **0.8475** | **0.9379** | ✓ |
 
-**Key finding:** The scoring head alone (no ID-boost) shows zero adaptation — the gate mechanism is ineffective.
-The ID-boost alone achieves full adaptation AND better cold-start safety (0.809 vs 0.791).
-The combined system adapts via ID-boost; the scoring head contributes a marginal initialization penalty at N=0
-that is recovered by N=50.
-
-**Paper framing:** ITMA's adaptation arises entirely from the counterfactual-weighted ID-boost.
-The scoring head is a frozen ranker that provides a structured embedding space;
-the memory bank + ID-boost is the adaptive component.
+**Key finding:** The scoring head alone shows zero adaptation (gate near-closed).
+The ID-boost alone achieves full adaptation AND slightly better cold-start (0.848 vs 0.831).
+Adaptation is entirely from the counterfactual-weighted ID-boost; head provides embedding structure only.
 
 ---
 
@@ -119,14 +83,13 @@ the memory bank + ID-boost is the adaptive component.
 
 | Artifact | Path |
 |---|---|
-| QA benchmark | `data/lecture_rag_75/qa.jsonl` (400+ items target, 5 domains) |
-| Splits | `data/lecture_rag_75/splits.json` (60/20/20 train/dev/test) |
+| QA benchmark | `data/lecture_rag_75/qa.jsonl` (291 items, 5 domains) |
+| Splits | `data/lecture_rag_75/splits.json` (174/58/59 train/dev/test) |
 | Combined FAISS store | `data/lecture_rag_75/combined/` |
 | ITMA checkpoint (v2, 414 triples) | `checkpoints/itma_head.pt` |
-| ITMA checkpoint (v1, 44 triples) | `checkpoints/itma_head_v1_44triples.pt` |
 | CFRAG-lite checkpoint | `checkpoints/cfrag_lite/` |
-| Per-system CSVs (n=24 test, w/ generation) | `analysis/results/{bm25,dense_minilm,...}.csv` |
-| Per-system CSVs (n=115 retrieval-only) | `analysis/results_115/{bm25,dense_minilm,...}.csv` |
+| Test-split retrieval results (n=59) | `analysis/results_test/{bm25,dense_minilm,...}.csv` |
+| Gen metrics results (n=24, old split) | `analysis/results/{bm25,dense_minilm,...}.csv` |
 | MS-MARCO results | `analysis/ms_marco/{bm25,dense_minilm,...}.csv` |
 | Cold-start CSV | `analysis/cold_start.csv` |
 | Ablation CSV | `analysis/ablation_cold_start.csv` |
@@ -134,7 +97,11 @@ the memory bank + ID-boost is the adaptive component.
 | Cold-start figure | `analysis/figures/cold_start_curve.pdf` |
 | Ablation figure | `analysis/figures/ablation_curve.pdf` |
 | Sensitivity heatmap | `analysis/figures/sensitivity_heatmap.pdf` |
+| Domain breakdown figure | `analysis/figures/domain_bars.pdf` |
 | LaTeX Table 1 | `python analysis/make_tables.py` |
-| Run ablation | `python scripts/cold_start_eval.py --systems itma itma_no_boost itma_boost_only --checkpoint checkpoints/itma_head.pt --out analysis/ablation_cold_start.csv` |
-| Run sensitivity sweep | `python scripts/sensitivity_eval.py` |
+| Retrieval eval (test split) | `python scripts/eval_retrieval_only.py --split test --output analysis/results_test` |
+| Cold-start eval | `python scripts/cold_start_eval.py --split test --systems dense_minilm static_memory cfrag_lite itma --seeds 0 1 2 3 4 --out analysis/cold_start.csv` |
+| Ablation eval | `python scripts/cold_start_eval.py --split test --systems itma itma_no_boost itma_boost_only --seeds 0 1 2 --out analysis/ablation_cold_start.csv` |
+| Sensitivity sweep | `python scripts/sensitivity_eval.py` |
+| Generation eval (Groq API) | `python -m src.evaluate --split test --output analysis/results_test` |
 | Expand benchmark | `python scripts/expand_benchmark.py --max-chunks 60 --n-per-chunk 3` |

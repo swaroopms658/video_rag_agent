@@ -29,11 +29,11 @@ OUT_FIG     = "analysis/figures/sensitivity_heatmap.pdf"
 
 
 def run_sweep(qa_path, splits_path, store_path, checkpoint,
-              lam_values, eta_values, seeds, target_n, out_csv):
+              lam_values, eta_values, seeds, target_n, out_csv, split="test"):
     from sentence_transformers import SentenceTransformer
     embed_model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-    items = load_test_data(qa_path, splits_path, split="all")
-    print(f"Loaded {len(items)} items")
+    items = load_test_data(qa_path, splits_path, split=split)
+    print(f"Loaded {len(items)} items (split={split})")
 
     os.makedirs(os.path.dirname(out_csv) if os.path.dirname(out_csv) else ".", exist_ok=True)
     rows = []
@@ -41,7 +41,7 @@ def run_sweep(qa_path, splits_path, store_path, checkpoint,
     combos = list(itertools.product(lam_values, eta_values))
     for lam, eta in combos:
         sys_name = f"itma_l{lam}_e{eta}"
-        print(f"\n{sys_name}  (λ={lam}, η={eta})")
+        print(f"\n{sys_name}  (lam={lam}, eta={eta})")
         for seed in seeds:
             retriever = build_retriever(sys_name, store_path, checkpoint)
             seed_rows = run_cold_start(
@@ -128,10 +128,13 @@ def main():
     parser.add_argument("--out-csv",    default=OUT_CSV)
     parser.add_argument("--out-fig",    default=OUT_FIG)
     parser.add_argument("--metric",     default="hit_at_5")
+    parser.add_argument("--split",      default="test",
+                        choices=["all", "train", "dev", "test"])
     args = parser.parse_args()
 
     rows = run_sweep(args.qa, args.splits, args.store, args.checkpoint,
-                     args.lam, args.eta, args.seeds, args.n_feedback, args.out_csv)
+                     args.lam, args.eta, args.seeds, args.n_feedback, args.out_csv,
+                     split=args.split)
     if rows:
         plot_heatmap(args.out_csv, args.metric, args.out_fig, args.lam, args.eta)
 
