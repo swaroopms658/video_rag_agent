@@ -1,0 +1,116 @@
+question,domain,difficulty,hit_at_1,hit_at_5,mrr_score,ndcg_at_10,recall_at_10
+What is a network in computer science?,computer_networks,factual,1,1,1.0,1.0,1.0
+How can a hostname be used to locate a host within a network?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What year did the ARPANET begin?,computer_networks,factual,0,0,0.0,0.0,0.0
+What does the OSI model provide for the coordination of standards development?,computer_networks,factual,1,1,1.0,1.0,1.0
+How many abstraction layers does the OSI reference model describe a communication system in?,computer_networks,factual,1,1,1.0,1.0,1.0
+"What can be inferred about the purpose of the OSI model, given its description of communications from the physical layer?",computer_networks,inferential,0,0,0.1667,0.3562,1.0
+What was the main challenge faced by the drafters of the OSI model?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What are the foundational protocols in the Internet protocol suite?,computer_networks,factual,1,1,1.0,1.0,1.0
+Why were early versions of the networking model known as the Department of Defense (DoD) Internet Architecture Model?,computer_networks,factual,1,1,1.0,1.0,1.0
+What is the purpose of the Internet protocol suite?,computer_networks,factual,0,1,0.5,0.6309,1.0
+Why did the Transmission Control Program's collaborators recommend dividing its functionality into layers of distinct protocols?,computer_networks,inferential,0,0,0.0,0.0,0.0
+What is the name of the protocol suite that includes TCP?,computer_networks,factual,1,1,1.0,1.0,1.0
+What kind of delivery does TCP provide?,computer_networks,factual,0,1,0.2,0.3869,1.0
+What can be inferred about the relationship between TCP and the Internet Protocol (IP)?,computer_networks,inferential,0,1,0.5,0.6309,1.0
+What is the purpose of IP fragmentation?,computer_networks,factual,0,1,0.3333,0.5,1.0
+What happens to data that is lost during transmission?,computer_networks,factual,0,1,0.25,0.4307,1.0
+When was Internet Protocol version 4 (IPv4) first specified?,computer_networks,factual,0,1,0.25,0.4307,1.0
+Why did IPv4 address space become too small?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What is the first version of TCP/IP in which TCP is separated from IP?,computer_networks,factual,1,1,1.0,1.0,1.0
+What does the DNS reflect?,computer_networks,factual,0,0,0.0,0.0,0.0
+Who developed and maintained the first ARPANET host name mapping file?,computer_networks,factual,0,1,0.25,0.4307,1.0
+How can administrative information for zones operated by a registry be complemented?,computer_networks,factual,1,1,1.0,1.0,1.0
+What layer of the OSI model does a MAC Bridge forward data at?,computer_networks,factual,1,1,1.0,1.0,1.0
+What type of technology is often connected to an end-user device in small office/home office (SOHO) applications?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What type of device is a router?,computer_networks,factual,0,1,0.25,0.4307,1.0
+How do routers determine the destination of a data packet?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What was the primary role of general-purpose minicomputers in the growth of computer networking?,computer_networks,inferential,1,1,1.0,1.0,1.0
+How has the development of Ethernet impacted the type of cables used?,computer_networks,inferential,0,0,0.0,0.0,0.0
+What was the name of the standard published in 1980 based on the 10Mbps version of Ethernet?,computer_networks,factual,1,1,1.0,1.0,1.0
+"What motivated Metcalfe, Gordon Bell, and David Liddle to standardize Ethernet?",computer_networks,inferential,1,1,1.0,1.0,1.0
+What is the original meaning of the term 'firewall'?,computer_networks,factual,0,0,0.1667,0.3562,1.0
+How did the term 'firewall' transition from its original meaning to its use in network technology?,computer_networks,inferential,0,1,0.5,0.6309,1.0
+What is a database management system (DBMS)?,database_systems,factual,1,1,1.0,1.0,1.0
+What type of database is based on the relational model of data?,database_systems,factual,0,1,0.2,0.3869,1.0
+What can be referred to as a database system?,database_systems,factual,1,1,1.0,1.0,1.0
+How does the term 'database' get used loosely?,database_systems,factual,1,1,1.0,1.0,1.0
+What type of language is used to manage data in a relational database?,database_systems,factual,0,0,0.1667,0.3562,1.0
+What can be inferred about the role of DBMS in a database system?,database_systems,inferential,1,1,1.0,1.0,1.0
+What is one reason for restructuring the collection of relations?,database_systems,factual,1,1,1.0,1.0,1.0
+What might happen to relations that have not been sufficiently normalized when an attempt is made to modify them?,database_systems,inferential,1,1,1.0,1.0,1.0
+What is the benefit of having a fully normalized database?,database_systems,inferential,1,1,1.0,1.0,1.0
+What is the name of the normal form that falls strictly between 3NF and BCNF?,database_systems,factual,0,1,0.3333,0.5,1.0
+Why is the Book table not in 3NF?,database_systems,inferential,1,1,1.0,1.0,1.0
+What is the purpose of the conceptual ER model?,database_systems,factual,1,1,1.0,1.0,1.0
+Can a logical ER model be developed without a conceptual ER model?,database_systems,inferential,0,1,0.5,0.6309,1.0
+What is an entity in the context of data modeling?,database_systems,factual,0,1,0.3333,0.5,1.0
+How does the conceptual data model relate to the physical model in the design of an information system?,database_systems,inferential,1,1,1.0,1.0,1.0
+How do some NoSQL systems prevent data loss through lost writes?,database_systems,factual,0,0,0.1667,0.3562,1.0
+What types of data are well represented as a graph consisting of elements connected by a finite number of relations?,database_systems,factual,1,1,1.0,1.0,1.0
+Why is it important to pay attention to the right benchmarks when evaluating the performance of NoSQL databases?,database_systems,inferential,0,0,0.0,0.0,0.0
+What is the main idea behind storing comments within the blog post document?,database_systems,factual,1,1,1.0,1.0,1.0
+What happens to a transaction if a single operation in the series fails?,database_systems,factual,0,0,0.0,0.0,0.0
+What is the goal of concurrent implementations of transaction processing?,database_systems,factual,0,0,0.0,0.0,0.0
+Why do transaction-processing systems ensure database integrity by recording intermediate state?,database_systems,inferential,0,0,0.0,0.0,0.0
+Can users directly access the query optimizer in a database system?,database_systems,factual,1,1,1.0,1.0,1.0
+What is the purpose of a query optimizer in a database system?,database_systems,inferential,1,1,1.0,1.0,1.0
+What method do cost-based query optimizers use for plan selection?,database_systems,factual,1,1,1.0,1.0,1.0
+What is affected by the CPU path length in the cost estimation of query plans?,database_systems,inferential,1,1,1.0,1.0,1.0
+What are some examples of what generative AI can generate?,generative_ai,factual,0,1,0.2,0.3869,1.0
+How do generative AI systems typically respond to user input?,generative_ai,inferential,1,1,1.0,1.0,1.0
+What type of relationship have generative AI systems learned from massive data sets?,generative_ai,factual,1,1,1.0,1.0,1.0
+What is the primary difference between a generative AI system and a genetic AI system?,generative_ai,inferential,0,1,0.2,0.3869,1.0
+Why are large language models (LLMs) used in chatbots?,generative_ai,inferential,0,0,0.0,0.0,0.0
+What type of models are typically used for images and audio?,generative_ai,factual,0,1,0.5,0.6309,1.0
+How does the speaker use generative AI in their daily life?,generative_ai,inferential,0,0,0.1667,0.3562,1.0
+Who is ultimately responsible for reviewing and refining the generated content in a YouTuber's workflow?,generative_ai,inferential,1,1,1.0,1.0,1.0
+What is the name of the process where an agent breaks down a complex task into smaller parts?,generative_ai,factual,0,0,0.0,0.0,0.0
+What role do LLMs play in the personal shopping agent's ability to perform tasks like monitoring price fluctuations and handling checkout processes?,generative_ai,inferential,1,1,1.0,1.0,1.0
+What is the first step an agent takes in planning a conference?,generative_ai,factual,1,1,1.0,1.0,1.0
+How does the agent use Gen AI in planning a conference?,generative_ai,inferential,1,1,1.0,1.0,1.0
+What is Gen AI's primary function?,generative_ai,factual,0,1,0.25,0.4307,1.0
+How will the most powerful AI system be different from current systems?,generative_ai,inferential,1,1,1.0,1.0,1.0
+What is the main focus of machine learning?,machine_learning,factual,0,1,0.5,0.6309,1.0
+How do advances in deep learning relate to the performance of statistical algorithms in machine learning?,machine_learning,inferential,1,1,1.0,1.0,1.0
+What was the outcome of connected artificial neurons changing the strength of their connections based on data?,machine_learning,inferential,0,0,0.0,0.0,0.0
+"What field did researchers from other disciplines, including John Hopfield, David Rumelhart, and Geoffrey Hinton, continue?",machine_learning,factual,0,0,0.0,0.0,0.0
+How did the field of machine learning change its goal in the 1990s?,machine_learning,inferential,0,0,0.0,0.0,0.0
+How are machine learning and statistics related?,machine_learning,inferential,0,0,0.0,0.0,0.0
+What kind of data might be used as a training set for handwriting analysis?,machine_learning,factual,1,1,1.0,1.0,1.0
+What is the purpose of a validation set in supervised learning?,machine_learning,factual,1,1,1.0,1.0,1.0
+What happens to the performance of the learned function after parameter adjustment and learning?,machine_learning,factual,1,1,1.0,1.0,1.0
+What type of learning algorithm is required to learn a highly complex function from a large amount of training data?,machine_learning,factual,1,1,1.0,1.0,1.0
+Why can learning the function be difficult even when the true function only depends on a small number of features?,machine_learning,inferential,0,1,0.5,0.6309,1.0
+What can happen to the learning algorithm if the desired output values are often incorrect?,machine_learning,factual,1,1,1.0,1.0,1.0
+Why is unsupervised learning considered more favorable than supervised learning?,machine_learning,inferential,0,1,0.5,0.6309,1.0
+What is a typical generative task in neural networks?,machine_learning,factual,1,1,1.0,1.0,1.0
+How do unsupervised networks correct themselves during the learning phase?,machine_learning,factual,1,1,1.0,1.0,1.0
+What determines the strength of the signal at each connection in an artificial neural network?,machine_learning,factual,1,1,1.0,1.0,1.0
+What happens to the signals as they travel through the network?,machine_learning,inferential,0,0,0.1,0.2891,1.0
+What was the outcome of the early efforts to develop a working learning algorithm for hidden units?,machine_learning,inferential,0,0,0.0,0.0,0.0
+Who is generally attributed to suggesting gradient descent in 1847?,machine_learning,factual,0,1,0.5,0.6309,1.0
+What happens when the procedure is used to maximize a function?,machine_learning,inferential,1,1,1.0,1.0,1.0
+"What is overfitting, according to the text?",machine_learning,factual,0,1,0.2,0.3869,1.0
+How does cross-validation relate to the goal of assessing a model's results?,machine_learning,inferential,0,1,0.5,0.6309,1.0
+What is an operating system?,operating_systems,factual,0,1,0.5,0.6309,1.0
+How do processes in an operating system typically execute instructions?,operating_systems,inferential,0,0,0.0,0.0,0.0
+What resources does a computer system process own?,operating_systems,factual,0,1,0.5,0.6309,1.0
+How does a process keep track of active subroutines and/or other events?,operating_systems,factual,0,0,0.0,0.0,0.0
+What is the purpose of the heap in a process?,operating_systems,factual,0,0,0.0,0.0,0.0
+What can be inferred about the process' data sources and sinks?,operating_systems,inferential,0,0,0.0,0.0,0.0
+What is the initial state of a process after it is loaded from a secondary storage device?,operating_systems,factual,1,1,1.0,1.0,1.0
+What happens to a process in the 'running' state if it needs to wait for a resource?,operating_systems,factual,0,1,0.5,0.6309,1.0
+How do processes and kernel threads differ in terms of resources?,operating_systems,inferential,0,0,0.1667,0.3562,1.0
+What happens if all processes are I/O-bound?,operating_systems,factual,1,1,1.0,1.0,1.0
+What is the consequence of having a mix of only CPU-bound processes?,operating_systems,inferential,1,1,1.0,1.0,1.0
+What is the mode in which the dispatcher receives control?,operating_systems,factual,0,0,0.1111,0.301,1.0
+How does the dispatcher handle the state of a process that is being replaced?,operating_systems,inferential,0,0,0.1429,0.3333,1.0
+Why do embedded systems and other special-purpose computer systems sometimes opt not to use virtual memory?,operating_systems,inferential,1,1,1.0,1.0,1.0
+What is the name of the file system used in the Windows NT family of operating systems?,operating_systems,factual,1,1,1.0,1.0,1.0
+How does a file system typically store the size of a file?,operating_systems,inferential,0,1,0.2,0.3869,1.0
+What is the primary purpose of using semaphores in a real-world system?,operating_systems,inferential,1,1,1.0,1.0,1.0
+Can following the rules of requesting and releasing resources prevent multi-resource deadlock?,operating_systems,inferential,1,1,1.0,1.0,1.0
+What is a characteristic of fixed-size blocks allocation?,operating_systems,factual,0,0,0.0,0.0,0.0
+Why might fixed-size blocks allocation be used in video games?,operating_systems,inferential,0,0,0.0,0.0,0.0
+Which operating system has the least number of system calls?,operating_systems,factual,0,0,0.1,0.2891,1.0

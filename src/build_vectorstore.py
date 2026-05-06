@@ -64,6 +64,7 @@ def _chunk_segments(segments, chunk_size=1000, overlap=100):
 
 
 def create_embeddings(transcript_path, vector_store_path):
+    """Legacy: saves pickle with embeddings array. Still supported for backward compat."""
     model = SentenceTransformer('all-MiniLM-L6-v2')
     segments = _load_segments(transcript_path)
     chunks, chunk_timestamps = _chunk_segments(segments)
@@ -78,3 +79,42 @@ def create_embeddings(transcript_path, vector_store_path):
     with open(vector_store_path, "wb") as f:
         pickle.dump(vector_store, f)
     print(f"Vector store saved to {vector_store_path}")
+
+
+def build_faiss_store(transcript_path, output_dir, model_name='all-MiniLM-L6-v2',
+                      chunk_size=1000, overlap=100):
+    """Build a FAISS IndexFlatIP store (cosine via L2-normalised inner product).
+
+    Saves two files into output_dir:
+      - index.faiss   : FAISS index (float32, L2-normalised embeddings)
+      - meta.pkl      : {'chunks': [...], 'timestamps': [...]} — no raw embeddings
+    """
+    try:
+        import faiss
+        import numpy as np
+    except ImportError:
+        raise ImportError("pip install faiss-cpu  to use build_faiss_store()")
+
+    model = SentenceTransformer(model_name)
+    segments = _load_segments(transcript_path)
+    chunks, timestamps = _chunk_segments(segments, chunk_size=chunk_size, overlap=overlap)
+    print(f"Created {len(chunks)} chunks from transcript.")
+
+    embeddings = model.encode(chunks, show_progress_bar=True).astype("float32")
+    # L2-normalise so IndexFlatIP == cosine similarity
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms = np.where(norms == 0, 1.0, norms)
+    embeddings /= norms
+
+    dim = embeddings.shape[1]
+    index = faiss.IndexFlatIP(dim)
+    index.add(embeddings)
+
+    os.makedirs(output_dir, exist_ok=True)
+    faiss.write_index(index, os.path.join(output_dir, "index.faiss"))
+
+    meta = {"chunks": chunks, "timestamps": timestamps}
+    with open(os.path.join(output_dir, "meta.pkl"), "wb") as f:
+        pickle.dump(meta, f)
+
+    print(f"FAISS store saved to {output_dir}  ({len(chunks)} chunks, dim={dim})")

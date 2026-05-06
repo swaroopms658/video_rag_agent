@@ -1,3 +1,4 @@
+import json as _json
 import os
 import time
 import requests
@@ -7,6 +8,7 @@ from src.answer_cache import AnswerCache
 from src.key_manager import KeyManager
 
 RETRIEVAL_CONFIDENCE_THRESHOLD = 0.35
+HF_MODEL = os.getenv("HF_TEXT_MODEL", "Qwen/Qwen2.5-7B-Instruct")
 
 
 class AgenticRAG:
@@ -21,13 +23,39 @@ class AgenticRAG:
             "estimated_llm_calls_saved": 0,
             "low_confidence": False,
         }
+        self._hf_client = None  # lazy init
+
+    def _get_hf_client(self):
+        if self._hf_client is None:
+            hf_key = os.getenv("HF_API_KEY")
+            if not hf_key:
+                return None
+            try:
+                from huggingface_hub import InferenceClient
+                self._hf_client = InferenceClient(provider="auto", api_key=hf_key)
+            except ImportError:
+                return None
+        return self._hf_client
+
+    def hf_generate(self, prompt, max_tokens=300):
+        """Generate via HF InferenceClient (auto-routed provider). Used as Groq fallback."""
+        client = self._get_hf_client()
+        if client is None:
+            raise RuntimeError("HF_API_KEY not set or huggingface_hub not installed.")
+        result = client.chat_completion(
+            model=HF_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=max_tokens,
+            temperature=0.3,
+        )
+        return result.choices[0].message.content
 
     def groq_generate(self, prompt):
         retries = 3
         while retries > 0:
             current_key = self.key_manager.get_current_key()
             if not current_key:
-                raise RuntimeError("No API Keys available.")
+                break
 
             headers = {
                 "Authorization": f"Bearer {current_key}",
@@ -35,34 +63,37 @@ class AgenticRAG:
             }
             data = {
                 "model": "llama-3.1-8b-instant",
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ],
+                "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 300,
-                "temperature": 0.3
+                "temperature": 0.3,
             }
-            
+
             try:
-                response = requests.post(self.endpoint, headers=headers, json=data)
-                
+                response = requests.post(
+                    self.endpoint,
+                    headers=headers,
+                    data=_json.dumps(data, ensure_ascii=False).encode("utf-8"),
+                )
                 if response.status_code == 200:
-                    completion = response.json()
-                    return completion["choices"][0]["message"]["content"]
+                    return response.json()["choices"][0]["message"]["content"]
                 elif response.status_code == 429:
-                    print(f"⚠️ Rate Limit Hit (429) on key ...{current_key[-4:]}. Rotating...")
-                    wait_time = 20 * (4 - retries) # 20s, 40s, 60s
-                    print(f"   Waiting {wait_time}s for quota cooldown...")
+                    wait_time = 20 * (4 - retries)
+                    print(f"  [groq] 429 rate limit, waiting {wait_time}s ...")
                     time.sleep(wait_time)
                     self.key_manager.rotate_key()
                     retries -= 1
-                    continue # Retry with new key
+                    continue
                 else:
                     raise RuntimeError(f"Groq API error: {response.status_code} {response.text}")
+            except RuntimeError:
+                raise
             except Exception as e:
-                print(f"Request Error: {e}")
+                print(f"  [groq] request error: {e}")
                 retries -= 1
-        
-        raise RuntimeError("Create Failed after retries (Rate Limits).")
+
+        # Groq exhausted — fall back to HF
+        print("  [groq] retries exhausted, falling back to HF ...")
+        return self.hf_generate(prompt)
 
     def groq_try(self, prompt):
         """Single-attempt Groq call with short timeout; returns None on any failure."""
@@ -70,15 +101,16 @@ class AgenticRAG:
         if not key:
             return None
         try:
+            _body = _json.dumps({
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 10,
+                "temperature": 0.0,
+            }, ensure_ascii=False).encode("utf-8")
             response = requests.post(
                 self.endpoint,
                 headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json={
-                    "model": "llama-3.1-8b-instant",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 10,
-                    "temperature": 0.0,
-                },
+                data=_body,
                 timeout=8,
             )
             if response.status_code == 200:
