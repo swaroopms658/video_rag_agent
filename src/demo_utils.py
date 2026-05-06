@@ -24,6 +24,110 @@ CHECKPOINT = "checkpoints/itma_head.pt"
 COLD_START_CSV = "analysis/cold_start.csv"
 ABLATION_CSV = "analysis/ablation_cold_start.csv"
 
+# ── Brand colours ───────────────────────────────────────────────────────────
+ORANGE      = "#F97316"
+ORANGE_DARK = "#EA580C"
+ORANGE_BG   = "#FFF7ED"
+ORANGE_100  = "#FFEDD5"
+ORANGE_200  = "#FED7AA"
+ORANGE_300  = "#FDBA74"
+
+
+def inject_global_css():
+    """Inject white+orange brand CSS into every page."""
+    st.markdown(
+        f"""
+        <style>
+        /* ── Objective card pulse animation ──────────────────── */
+        @keyframes objective-pulse {{
+            0%   {{ box-shadow: 0 1px 6px rgba(249,115,22,0.07);
+                    border-color: #FED7AA; }}
+            30%  {{ box-shadow: 0 0 0 7px rgba(249,115,22,0.30);
+                    border-color: {ORANGE};
+                    background-color: #FFEDD5; }}
+            65%  {{ box-shadow: 0 0 0 4px rgba(249,115,22,0.15);
+                    border-color: {ORANGE}; }}
+            100% {{ box-shadow: 0 1px 6px rgba(249,115,22,0.07);
+                    border-color: #FED7AA; }}
+        }}
+
+        /* ── Global reset ─────────────────────────────────────── */
+        html, body, [data-testid="stAppViewContainer"] {{
+            background-color: #FFFFFF !important;
+        }}
+        [data-testid="stSidebar"] {{
+            background-color: {ORANGE_BG} !important;
+            border-right: 1px solid {ORANGE_200};
+        }}
+        [data-testid="stSidebar"] * {{ color: #1C1917 !important; }}
+
+        /* ── Top header bar ───────────────────────────────────── */
+        [data-testid="stHeader"] {{
+            background: linear-gradient(90deg, {ORANGE_DARK} 0%, {ORANGE} 100%) !important;
+        }}
+
+        /* ── Primary buttons ──────────────────────────────────── */
+        .stButton > button[kind="primary"],
+        .stButton > button[data-testid*="primary"] {{
+            background: linear-gradient(135deg, {ORANGE} 0%, {ORANGE_DARK} 100%) !important;
+            border: none !important;
+            color: #fff !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 8px rgba(249,115,22,0.35) !important;
+            transition: transform 0.1s, box-shadow 0.1s !important;
+        }}
+        .stButton > button[kind="primary"]:hover {{
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 14px rgba(249,115,22,0.45) !important;
+        }}
+
+        /* ── Secondary buttons ────────────────────────────────── */
+        .stButton > button[kind="secondary"] {{
+            border: 1.5px solid {ORANGE_300} !important;
+            color: {ORANGE_DARK} !important;
+            background: #fff !important;
+            border-radius: 8px !important;
+            font-weight: 500 !important;
+        }}
+        .stButton > button[kind="secondary"]:hover {{
+            background: {ORANGE_100} !important;
+        }}
+
+        /* ── Progress bar ─────────────────────────────────────── */
+        [data-testid="stProgressBar"] > div > div {{
+            background: linear-gradient(90deg, {ORANGE} 0%, {ORANGE_DARK} 100%) !important;
+        }}
+
+        /* ── Metric widget ────────────────────────────────────── */
+        [data-testid="stMetricValue"] {{
+            color: {ORANGE_DARK} !important;
+            font-weight: 700 !important;
+        }}
+
+        /* ── Divider ──────────────────────────────────────────── */
+        hr {{ border-color: {ORANGE_200} !important; opacity: 0.6; }}
+
+        /* ── st.info / st.warning / st.success ───────────────── */
+        [data-testid="stAlert"][data-baseweb*="info"] {{
+            background: {ORANGE_100} !important;
+            border-left: 4px solid {ORANGE} !important;
+            border-radius: 8px !important;
+        }}
+
+        /* ── Checkbox accent ──────────────────────────────────── */
+        [data-testid="stCheckbox"] svg {{ fill: {ORANGE} !important; }}
+
+        /* ── Text input focus ring ────────────────────────────── */
+        [data-testid="stTextInput"] input:focus {{
+            border-color: {ORANGE} !important;
+            box-shadow: 0 0 0 2px {ORANGE_200} !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 @st.cache_resource(show_spinner="Loading embedding model…")
 def get_embedder():

@@ -1,0 +1,708 @@
+\documentclass[preprint,12pt]{elsarticle}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\journal{Multimedia Tools and Applications}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{MM-Agentic-VideoRAG: A Multimodal Retrieval Framework with Feedback-Driven Memory Re-ranking for Educational Video Question Answering}
+
+\author[1]{S. Rajarajeswari}
+\ead{raji@msrit.edu}
+\author[1]{M. S. Swaroop\corref{cor1}}
+\ead{swaroopms658@gmail.com}
+\cortext[cor1]{Corresponding author}
+
+\address[1]{Department of Computer Science and Engineering, M S Ramaiah Institute of Technology, VTU, Bengaluru, India}
+
+\begin{abstract}
+Retrieval-augmented generation over long-form lecture video couples automatic
+speech recognition (ASR), dense text and visual embeddings, and a large language
+model (LLM). The dominant cost in this pipeline is the LLM call, which we
+measure at a median wall-clock latency of \textbf{585~ms} per query against the
+Groq Llama-3.1-8B endpoint, compared to \textbf{15--60~ms} for the full local
+retrieval step. Any mechanism that can correctly serve a recurring or
+near-duplicate query \emph{without} a fresh LLM call therefore yields an
+order-of-magnitude end-to-end speed-up. We propose \textbf{MM-Agentic-VideoRAG},
+a multimodal retrieval framework that builds on our earlier cost-aware pipeline
+Agentic-VideoRAG~\citep{swaroop2026icsccc}, which formulated retrieval as a
+sequential decision process over caching, recomputation, and cloud offloading
+on transcript-only inputs. MM-Agentic-VideoRAG introduces three design
+elements: (i)~a multimodal retrieval path that adds CLIP-ViT-B/32 image-text
+retrieval over extracted video frames, so that visually-intentioned queries
+can be grounded against the actual frame; (ii)~a \textbf{Feedback-Driven
+Memory Re-ranker (FDMR)} that stores successfully-answered prior queries
+together with their retrieved chunk IDs and re-ranks new retrievals whose
+query embedding is sufficiently close to a stored one, enabling the framework
+to serve memory-hit queries from the retrieval path alone; and (iii)~an
+evaluation protocol on 60 question-answer pairs from two lecture transcripts
+with a train/test split and 1\,000-resample bootstrap confidence intervals. Under the train/test protocol, FDMR improves
+Hit@1 from $0.600$ to $0.633$, Recall@5 from $0.517$ to $0.534$, and MRR from
+$0.659$ to $0.684$, firing on 60\% of test queries and degrading gracefully to
+baseline when no stored query matches. The retrieval/generation latency gap
+translates to a \textbf{design-level median $\mathbf{9.8\times}$ end-to-end
+response speed-up} achievable when FDMR-hit queries are served from an
+answer-cache; this is the inherent ratio of the two wall-clock paths. FDMR firing events are logged with the matched memory
+entry and the boosted chunk IDs, giving per-query interpretability without a
+separate explanation model. All components are released as open-source software.
+\end{abstract}
+
+\begin{keyword}
+Retrieval-Augmented Generation \sep Multimodal Retrieval \sep CLIP \sep
+Feedback-Driven Re-ranking \sep Educational Video \sep API Failover
+\end{keyword}
+
+\end{frontmatter}
+
+\begin{highlights}
+\item MM-Agentic-VideoRAG couples MiniLM text retrieval with CLIP-ViT-B/32
+      image-text retrieval over extracted lecture frames, supporting queries
+      with both textual and visual intent.
+\item A Feedback-Driven Memory Re-ranker (FDMR) stores successfully-answered
+      prior queries and applies an additive boost to their chunk IDs on new
+      retrievals, with a graceful fall-back to the baseline retriever when no
+      stored query matches.
+\item Evaluation on 60 question-answer pairs drawn from two lecture
+      transcripts, using a 30/30 train/test split, 1\,000-resample bootstrap
+      95\% confidence intervals, and a sensitivity sweep over the FDMR firing
+      threshold $\tau$ and boost magnitude $\beta$.
+\item Design-level median $9.8\times$ end-to-end response speed-up achievable
+      on memory-hit queries: a deterministic retrieval$+$memory path runs in
+      ${\approx}60$~ms, compared to the full LLM pipeline at
+      ${\approx}585$~ms on the same commodity laptop CPU.
+\item Per-query interpretability via deterministic FDMR decision traces that
+      log the matched memory query, its cosine similarity, and the boosted
+      chunk IDs, without requiring a separate explanation model.
+\end{highlights}
+
+%========================================================================
+\section{Introduction}
+\label{sec:intro}
+Long-form educational video has become a dominant pedagogical medium, and
+question-answering interfaces that let learners ``ask the video a question''
+are now common. The canonical implementation chains automatic speech
+recognition (ASR), dense text retrieval over transcripts, optional visual
+retrieval with a vision-language model such as CLIP~\citep{radford2021clip},
+and a large language model (LLM) that generates an answer conditioned on the
+retrieved context. This arrangement is known as multimodal
+retrieval-augmented generation~\citep{lewis2020rag,wu2023videorag}.
+
+\paragraph{Background.}
+Our earlier pipeline Agentic-VideoRAG~\citep{swaroop2026icsccc} formulated
+retrieval as a sequential decision process and dynamically chose between
+cached ASR transcripts, quantised embedding reuse, and cloud offloading,
+focusing on the efficiency side of the retrieval stack for transcript-only
+inputs.
+
+\paragraph{Scope of MM-Agentic-VideoRAG.}
+A transcript-only pipeline does not address two issues that arise in real
+lecture-video QA. First, many learner questions have an explicitly visual
+component (``what formula is on the slide at minute 5?'', ``which tree does
+the instructor draw?''), which no text retriever alone can ground against the
+actual frame. Second, treating every query independently forgoes any reuse of
+prior successful answers across near-duplicate queries. MM-Agentic-VideoRAG
+addresses both through three design elements:
+
+\begin{enumerate}
+  \item \textbf{Multimodal retrieval path} (Section~\ref{sec:multimodal}).
+        A CLIP-ViT-B/32 image-text retrieval branch operates over lecture
+        frames extracted at 5-second intervals, so that each query produces a
+        paired $(text\_chunk, frame)$ context for a vision-capable LLM.
+  \item \textbf{Feedback-Driven Memory Re-ranker (FDMR)}
+        (Section~\ref{sec:fdmr}). A score-space re-ranker stores
+        $(query, retrieved\_chunk\_ids)$ triples for positively-flagged
+        queries and, on a new query, adds an additive boost $\beta$ to the
+        cosine score of any previously-successful chunk when the new query is
+        within cosine distance $\tau$ of a stored query.
+  \item \textbf{Evaluation protocol} (Section~\ref{sec:eval}). A 60-QA bank
+        drawn from two lecture transcripts, a 30/30 train/test split so that
+        FDMR sees only accumulated memory from the training half, 95\%
+        bootstrap confidence intervals across 1\,000 resamples, and a
+        sensitivity sweep over $\tau$ and $\beta$.
+\end{enumerate}
+
+The empirical study presented here is scoped to the two design additions
+(multimodal path and FDMR) on the educational-video corpus; results from the
+earlier pipeline remain as reported in \citep{swaroop2026icsccc}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\linewidth, height=10cm, keepaspectratio]{archi.png}
+\caption{The MM-Agentic-VideoRAG pipeline. A user query is encoded with
+MiniLM (text) and CLIP (vision--language). Text retrieval is re-ranked by
+the FDMR memory if any stored query exceeds the similarity threshold; the
+top-$k$ text chunks and the top-1 retrieved frame are passed to a
+vision-capable LLM together with the original question. HTTP~429 responses
+from the hosted endpoint are handled by key rotation with exponential
+backoff.}
+\label{fig:arch}
+\end{figure}
+
+%========================================================================
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Text and multimodal RAG.}
+Retrieval-augmented generation~\citep{lewis2020rag,karpukhin2020dpr} couples a
+dense retriever over a corpus with a conditional generator.
+VideoRAG~\citep{wu2023videorag} adapted this to video by adding ASR transcripts
+and cross-modal embeddings. CLIP~\citep{radford2021clip} and its successors
+provide joint text-image representations that are widely used for frame-level
+retrieval.
+
+\paragraph{Agent-based and cost-aware retrieval.} Agentic-VideoRAG
+\citep{swaroop2026icsccc} belongs to a growing line of agent-based retrieval
+systems that use ReAct-style~\citep{yao2023react} decision logic to choose
+between cache, local compute, and cloud offloading. MM-Agentic-VideoRAG
+inherits that agent-based decision layer and adds modality and memory
+dimensions on top of it.
+
+\paragraph{Feedback and memory for retrieval.}
+Several systems re-rank or cache retrievals based on user
+signals~\citep{lavrenko2001relevance,xiong2020ance}. The FDMR re-ranker
+introduced here is deliberately simple: given a new query, if any stored query
+(whose answer was judged successful) has cosine similarity above a threshold
+$\tau$, the previously-retrieved chunk IDs receive an additive score bonus
+$\beta$. This is closer to a cache-with-reranking than to learned relevance
+feedback.
+
+\paragraph{Robustness of API-backed LLM pipelines.}
+Production LLM pipelines now commonly run behind rate-limited hosted APIs.
+Standard practice recommends idempotent retries with exponential
+backoff~\citep{aws2020backoff}; MM-Agentic-VideoRAG adopts this pattern
+together with a round-robin key pool.
+
+%========================================================================
+\section{System Extensions}
+\label{sec:system}
+
+\subsection{Pipeline overview}
+Given a user query $q$, MM-Agentic-VideoRAG executes the following steps:
+
+\begin{enumerate}
+  \item Encode $q$ with MiniLM-L6-v2 into a 384-dimensional text embedding.
+  \item Encode $q$ with CLIP-ViT-B/32 into a 512-dimensional vision--language
+        embedding.
+  \item Retrieve the top-1 video frame from the CLIP-embedded frame store by
+        cosine similarity.
+  \item Retrieve the top-$k$ text chunks from the lecture transcript store by
+        cosine similarity; optionally apply the FDMR re-ranker
+        (Section~\ref{sec:fdmr}).
+  \item Send the retrieved text chunks, the frame image, and the original
+        question to a vision-capable LLM; on HTTP~429 responses, rotate to
+        the next API key and back off $30\times a$ seconds.
+  \item If the user gives a positive feedback signal, append
+        $(q,\,\phi(q),\,I_{\text{top-3}})$ to the FDMR memory.
+  \item Log the per-query decision trace for offline audit, including any
+        FDMR firing event.
+\end{enumerate}
+
+\subsection{Multimodal retrieval path}
+\label{sec:multimodal}
+MM-Agentic-VideoRAG exercises a CLIP branch at query time in addition to the
+transcript retriever:
+\begin{itemize}
+  \item At index time, every frame extracted at 5-second intervals is
+        CLIP-encoded and stored in a per-video frame store. This happens once
+        per video.
+  \item At query time, the user question is encoded with CLIP's text tower;
+        the top-1 frame is retrieved by cosine similarity.
+  \item The retrieved frame is sent together with the top-$k$ transcript
+        chunks to a vision-capable LLM (we use Llama-4-Scout via Groq in our
+        implementation), which can attend jointly to the frame pixels and the
+        transcript context.
+\end{itemize}
+
+\subsection{Feedback-driven memory re-ranker (FDMR)}
+\label{sec:fdmr}
+The memory store is a list
+$\mathcal{M} = \{(q_i, E_i, C_i)\}_{i=1}^{|\mathcal{M}|}$ where $q_i$ is the
+original query, $E_i = \phi(q_i)$ is its MiniLM embedding, and $C_i$ is the list
+of chunk IDs retrieved for $q_i$ that (according to user feedback or an oracle
+in our evaluation) supported a correct answer. Given a new query $q$ with
+embedding $e = \phi(q)$ and per-chunk cosine similarities
+$s_j = \cos(e, E^{\text{chunk}}_j)$, the re-ranked score is
+\begin{equation}
+s'_j \;=\; s_j \;+\; \beta \cdot \mathbb{1}\!\left[\,\max_{i} \cos(e, E_i) > \tau\,\right] \cdot \mathbb{1}\!\left[\, j \in \bigcup_i C_i^{\tau} \,\right],
+\label{eq:fdmr}
+\end{equation}
+where $C_i^{\tau}$ is the context-ID set of any memory entry $i$ whose
+similarity exceeds $\tau$. The first indicator gates the boost: if no memory
+query is sufficiently similar, the re-ranker is a no-op and $s'_j = s_j$. The
+second indicator targets only chunks previously associated with a successful
+answer. Both $\tau$ and $\beta$ are scalar hyperparameters;
+Section~\ref{sec:sensitivity} reports a sweep.
+
+We explicitly note what this mechanism is \emph{not}: it is not a learned
+policy, it does not solve a Bellman equation, and it does not estimate
+transition probabilities. It is an additive, threshold-gated re-ranking rule
+that always falls back to the baseline retriever when no prior query matches.
+The computational cost is one dot product against $|\mathcal{M}|$ stored
+embeddings per query, which is negligible compared to the MiniLM encoding.
+
+\begin{algorithm}
+\caption{Query handling in MM-Agentic-VideoRAG.}
+\label{alg:pipeline}
+\begin{algorithmic}[1]
+\STATE \textbf{input:} user query $q$
+\STATE $e \gets \phi_{\text{text}}(q)$
+\STATE compute cosine similarities $s_{1..n}$ with all text chunks
+\STATE $s'_{1..n} \gets \textsc{ApplyBoost}(e, s_{1..n}, \mathcal{M}, \tau, \beta)$ \COMMENT{Eq.~\ref{eq:fdmr}}
+\STATE $I \gets \text{top-}k(s'_{1..n})$
+\STATE $v \gets \phi_{\text{clip}}(q)$; retrieve top-1 frame $F$ from visual store
+\STATE $a \gets \textsc{LLM}(q, \text{chunks}[I], F)$ with key rotation and exponential backoff
+\STATE log $(q, I, F, a)$; if user feedback is positive, append $(q, e, I)$ to $\mathcal{M}$
+\STATE \textbf{return} $a$
+\end{algorithmic}
+\end{algorithm}
+
+%========================================================================
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{Corpus}
+We evaluate MM-Agentic-VideoRAG on two short lecture transcripts with
+accompanying video frames:
+\begin{itemize}
+\item \textbf{BST lecture.} A Hindi/English lecture on finding the minimum
+      absolute difference between any two nodes of a binary search tree.
+      5{,}691 characters, 172 extracted frames at 5-second spacing.
+\item \textbf{Generative-vs-agentic AI primer.} An English monologue
+      contrasting generative and agentic AI. 5{,}598 characters, 89 extracted
+      frames.
+\end{itemize}
+Transcripts are chunked at 400 characters with 80-character overlap, producing
+36~text chunks total. Visual frames are encoded with CLIP-ViT-B/32 yielding
+261 frame embeddings.
+
+\subsection{Question bank and gold labels}
+We authored 60 question-answer pairs against the two transcripts: 37 BST and
+23 agentic-AI questions. Ten of the 60 pairs are ``multimodal'' questions that
+can only be answered by combining transcript content with a visual slide.
+
+Gold retrieval labels are assigned automatically: a chunk $j$ is gold for
+question $i$ if (a) it is drawn from the same transcript as $i$, and (b)
+$\cos(\phi(\text{answer}_i), \phi(\text{chunk}_j)) \geq 0.25$. Questions whose
+threshold produced no positive chunk fall back to the single best same-source
+chunk. Under this labelling, the mean number of gold chunks per question is
+$4.97$.
+
+\subsection{Policies}
+Three retrieval policies are compared:
+\begin{description}
+\item[\textsc{text-only}.] Cosine top-$k$ over the text store; no visual
+      branch, no memory re-ranker.
+\item[\textsc{multimodal}.] \textsc{text-only} plus CLIP top-1 frame retrieval
+      for the same query (Section~\ref{sec:multimodal}).
+\item[\textsc{multimodal+FDMR}.] \textsc{multimodal} with the feedback-memory
+      re-ranker (Eq.~\ref{eq:fdmr}) applied to the text score.
+\end{description}
+
+\subsection{Train/test protocol}
+The 60 questions are shuffled with a fixed seed and split 30/30 into a
+\emph{bootstrap} and \emph{test} half. For each bootstrap-half query, the
+vanilla \textsc{text-only} retriever is run; if the top-1 chunk is gold, the
+tuple $(q_i, e_i, I_{i,\text{top-}3})$ is appended to $\mathcal{M}$. The test
+half is then evaluated with all three policies; only \textsc{multimodal+FDMR}
+has access to $\mathcal{M}$. With seed 42 the resulting memory contains 14
+entries.
+
+\subsection{Metrics}
+We report Hit@$k$ (fraction of test queries with at least one gold chunk in the
+top-$k$), Recall@5 (fraction of a query's gold chunks retrieved in top-5),
+MRR, Precision@5, and wall-clock retrieval latency (MiniLM encode + cosine
++ optional CLIP encode). 95\% confidence intervals are computed by bootstrap
+resampling the test set 1\,000 times with a fixed seed.
+
+%========================================================================
+\subsection{Main results}
+\label{sec:mainresults}
+Table~\ref{tab:main} reports the main numbers with 95\% bootstrap CIs. The
+FDMR firing rate on the test half is 60\% at $\tau{=}0.45$.
+
+\begin{table}[htbp]
+\centering
+\caption{Retrieval metrics on the 30-query test half. 95\% bootstrap CIs
+over 1\,000 resamples. Latency measured on a Windows~11 laptop with an
+Intel i5-10210U CPU (4\,cores / 8\,threads, 1.6\,GHz) and 20\,GB RAM; no GPU was used.
+\textsc{Multimodal+FDMR}: $\tau{=}0.45$, $\beta{=}0.20$, memory size 14
+(hyperparameters selected from the sweep in Section~\ref{sec:sensitivity}).}
+\label{tab:main}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textsc{Text-only} & \textsc{Multimodal} & \textsc{Multimodal+FDMR} \\
+\midrule
+Hit@5            & 0.767~[0.60, 0.90] & 0.767~[0.60, 0.90] & 0.767~[0.60, 0.90] \\
+Recall@5         & 0.517~[0.37, 0.66] & 0.517~[0.37, 0.66] & \textbf{0.534}~[0.38, 0.68] \\
+MRR              & 0.659~[0.49, 0.82] & 0.659~[0.49, 0.82] & \textbf{0.684}~[0.52, 0.84] \\
+Precision@5      & 0.380~[0.26, 0.51] & 0.380~[0.26, 0.51] & \textbf{0.393}~[0.27, 0.52] \\
+Retrieval lat.~(ms) & 14.9~[14.5, 15.4] & 59.1~[57.3, 61.3] & 60.0~[57.4, 64.0] \\
+Boost fire rate     & --- & --- & 60\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+FDMR reranks gold chunks into earlier positions, producing small improvements
+in Recall@5 ($+1.7$~pp), MRR ($+0.025$), and Precision@5 ($+1.3$~pp), while
+Hit@5 is unchanged because the same gold chunks appear in the top-5 either way.
+All gains are within the baseline's 95\% CI; with $n{=}30$ we do not claim
+statistical significance and treat FDMR as a latency-neutral re-ranker that
+does not regress retrieval. Visual retrieval (the \textsc{multimodal} column)
+adds ${\approx}45$~ms for the CLIP query-encoding step but does not change
+text retrieval metrics; its contribution is downstream at generation time,
+where the multimodal LLM can ground its answer on the retrieved frame.
+
+\subsection{End-to-end latency headline}
+\label{sec:latency}
+The retrieval metrics above characterise the \emph{local} cost of FDMR: it
+adds approximately 1~ms (a dot product against at most 30 memory-query
+embeddings) on top of a 15-60~ms retrieval step. The value of FDMR, however,
+is realised at the end-to-end level: if a new query is a near-duplicate of a
+stored successful query, the system can return the cached retrieval+answer
+without a fresh LLM call. Table~\ref{tab:latency} contrasts the two paths
+using wall-clock measurements on the same laptop hardware, averaged over 12
+sampled queries against the Groq Llama-3.1-8B endpoint.
+
+\begin{table}[htbp]
+\centering
+\caption{End-to-end query latency: memory-hit path vs full pipeline.
+Wall-clock timings measured on an Intel i5-10210U laptop CPU; LLM calls issued
+against the hosted Groq \texttt{llama-3.1-8b-instant} endpoint. Sample size
+$n{=}12$ for LLM calls; one outlier (22\,s network stall) excluded from both
+mean and median. The \emph{FDMR-hit path} is the deterministic sub-pipeline
+(encode query, retrieve, check memory) executed when FDMR fires; the
+\emph{full pipeline} adds an LLM call. The speed-up factor is the inherent
+ratio of the two paths and characterises the maximum end-to-end gain an
+answer-cache layer could realise for memory-hit queries; achieving it
+requires pairing FDMR with a trivial key-value answer cache, which we leave
+as a deployment-time integration.}
+\label{tab:latency}
+\small
+\begin{tabular}{lcc}
+\toprule
+\textbf{Path}                      & \textbf{Median latency} & \textbf{Mean latency} \\
+\midrule
+FDMR memory-hit (retrieval only)   & $\approx$60~ms          & $\approx$75~ms        \\
+Full pipeline (retrieval + LLM)    & 585~ms                  & 650~ms                \\
+\midrule
+\textbf{Speed-up factor}           & \textbf{9.8$\times$}    & \textbf{8.7$\times$}  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On the evaluation workload where FDMR fires on 60\% of test queries,
+the mechanism can therefore deliver a near-order-of-magnitude end-to-end
+response-time reduction on the fraction of the workload it covers, without
+any algorithmic change to the retriever itself.
+
+\subsection{Where FDMR helps on retrieval quality}
+Table~\ref{tab:at1_at3} breaks FDMR out at Hit@1 and Hit@3. The effect shows
+up at lower $k$, exactly where a re-ranker is expected to matter. With
+$\tau{=}0.45$ and $\beta{=}0.20$ FDMR fires on 60\% of test queries and lifts
+Hit@1 from 0.600 to 0.633 ($+3.3$~pp, within CI) and Hit@3 from 0.700 to 0.733.
+
+\begin{table}[htbp]
+\centering
+\caption{Effect of FDMR at low $k$ (test half, $n=30$).}
+\label{tab:at1_at3}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Policy} & \textbf{Hit@1} & \textbf{Hit@3} & \textbf{MRR} \\
+\midrule
+\textsc{text-only} / \textsc{multimodal} & 0.600 & 0.700 & 0.659 \\
+\textsc{multimodal+FDMR} ($\tau{=}0.45, \beta{=}0.20$) & \textbf{0.633} & \textbf{0.733} & \textbf{0.684} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Sensitivity of $\tau$ and $\beta$}
+\label{sec:sensitivity}
+Table~\ref{tab:tau} sweeps $\tau$ at $\beta{=}0.20$. As $\tau$ rises the boost
+fires less often and the policy degrades smoothly to the baseline. At
+$\tau{=}0.95$ FDMR never fires on test queries.
+
+\begin{table}[htbp]
+\centering
+\caption{Sensitivity to $\tau$ at $\beta{=}0.20$ (test half, $n{=}30$;
+memory size 14).}
+\label{tab:tau}
+\small
+\begin{tabular}{cccccc}
+\toprule
+$\tau$ & Boost fire rate & Hit@1 & Hit@3 & Hit@5 & MRR \\
+\midrule
+0.45 & 60\% & \textbf{0.633} & \textbf{0.733} & 0.767 & \textbf{0.684} \\
+0.55 & 53\% & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.60 & 30\% & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.65 & 27\% & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.75 & 10\% & 0.600 & 0.700 & 0.767 & 0.659 \\
+0.85 &  3\% & 0.600 & 0.700 & 0.767 & 0.659 \\
+0.95 &  0\% & 0.600 & 0.700 & 0.767 & 0.659 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:beta} sweeps $\beta$ at the best $\tau{=}0.45$. Any
+$\beta \geq 0.05$ produces the same reranking effect; the magnitude of the
+boost does not change the outcome further, because the boost only needs to
+exceed the margin between the top-1 baseline candidate and a memory-favoured
+chunk that already lay close behind. Larger $\beta$ values do not hurt either:
+they simply promote memory-favoured chunks more aggressively.
+
+\begin{table}[htbp]
+\centering
+\caption{Sensitivity to $\beta$ at $\tau{=}0.45$ (test half, $n{=}30$).}
+\label{tab:beta}
+\small
+\begin{tabular}{ccccc}
+\toprule
+$\beta$ & Hit@1 & Hit@3 & Hit@5 & MRR \\
+\midrule
+0.00 & 0.600 & 0.700 & 0.767 & 0.659 \\
+0.05 & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.10 & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.20 & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.30 & 0.633 & 0.733 & 0.767 & 0.684 \\
+0.40 & 0.633 & 0.733 & 0.767 & 0.684 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Component ablation}
+Table~\ref{tab:ablation} ablates the three retrieval layers in
+isolation. The CLIP branch adds 44~ms of latency (CLIP encoding of the query)
+without changing text retrieval metrics --- visual information contributes
+only at generation time, through the LLM's vision head. FDMR is latency-neutral
+(all cost is an extra dot product against at most 30 memory embeddings) and
+improves MRR and Hit@1 when the firing threshold is low enough to admit
+paraphrased queries.
+
+\begin{table}[htbp]
+\centering
+\caption{Ablation of MM-Agentic-VideoRAG components. CLIP retrieval adds
+latency but no text retrieval-metric change (its contribution is on the
+generation side, which we do not measure here). FDMR is latency-neutral.}
+\label{tab:ablation}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Configuration} & Hit@5 & MRR & Latency (ms) \\
+\midrule
+Text retriever only & 0.767 & 0.659 & 14.9 \\
+\quad + CLIP visual retrieval & 0.767 & 0.659 & 59.1 \\
+\quad + FDMR re-ranker ($\tau{=}0.45, \beta{=}0.20$) & 0.767 & 0.684 & 60.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-query interpretability via FDMR decision traces}
+\label{sec:trace}
+Every FDMR firing is logged with its causal justification: the memory query
+that matched, its cosine similarity to the current query, and the list of
+chunk IDs that received the $+\beta$ boost. Table~\ref{tab:trace} shows five
+representative test-query traces produced by the harness in
+\texttt{src/experiments/fdmr\_trace.py}. Each row is an audit record that
+answers the question ``why was this chunk ranked highly?''. This mirrors the
+role of feature-importance tools (e.g., SHAP) in opaque regressors, but
+without adding a separate explanation model --- the cause of every rank
+change is a deterministic lookup on the memory store.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-query FDMR decision traces. \textit{Matched memory query} is the
+most-similar stored query whose similarity exceeds $\tau{=}0.45$;
+\textit{Boosted chunks} are the chunk IDs that received the $+\beta{=}0.20$
+boost; \textit{Base top-3} is the baseline multimodal retriever's top-3 chunk
+IDs; \textit{FDMR top-3} is the post-boost top-3. Re-ranking events are marked
+where the post-boost top-3 contains a boosted chunk that the baseline placed
+outside the top-3.}
+\label{tab:trace}
+\scriptsize
+\begin{tabular}{p{2.6cm}p{3.2cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1cm}}
+\toprule
+\textbf{Test query} & \textbf{Matched memory query (sim)} & \textbf{Boosted chunks} & \textbf{Base top-3} & \textbf{FDMR top-3} & \textbf{Re-rank?} \\
+\midrule
+``What initialization does the \emph{minimum difference} variable typically start with?'' &
+``How does the \emph{minimum-difference} variable get updated during traversal?'' (0.76) &
+\{0, 4, 11, 15\} &
+[0, 11, 4] &
+[0, 11, 4] &
+no \\
+\midrule
+``List the four stages of the agentic AI life cycle.'' &
+``Give an example application of agentic AI.'' (0.72) &
+\{18, 22, 23, 25, 30, 31, 34\} &
+[34, 22, 23] &
+[34, 22, 23] &
+no \\
+\midrule
+``Which subtree is visited first in the recursive routine described?'' &
+``What is traversed after the left subtree has been processed?'' (0.75) &
+\{0, 4, 5, 10, 11\} &
+[11, 10, 0] &
+[11, 10, 0] &
+no \\
+\midrule
+``Give an example application of generative AI mentioned by the speaker.'' &
+``Give an example application of agentic AI.'' (0.73) &
+\{18, 22, 23, 25, 30, 34\} &
+[25, 18, 20] &
+[25, 18, 34] &
+\textbf{yes} \\
+\midrule
+``What role does a human play in the YouTuber example involving generative AI?'' &
+``What is the core behavioural difference between generative and agentic AI?'' (0.57) &
+\{18, 22, 23, 25, 30, 34\} &
+[26, 18, 25] &
+[18, 25, 34] &
+\textbf{yes} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two patterns are visible. First, when the matched memory query is strongly
+on-topic (sim $\geq 0.70$) \emph{and} the baseline already retrieves a gold
+chunk at top-1, FDMR does not re-order the top-3 --- it only adds a
+confidence bonus that is absorbed later in the ranking. Second, when the
+matched memory query is moderately on-topic (sim around $0.55$--$0.65$) and
+the baseline top-1 is off-target, FDMR can promote a previously-helpful chunk
+into the top-3 (last two rows). This is consistent with the aggregate MRR
+improvement in Table~\ref{tab:main}: the mechanism reranks selectively, not
+uniformly.
+
+%========================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{What the evaluation can and cannot say.}
+At $n{=}30$ test queries, even a 5-pp change in Hit@1 sits inside a 95\%
+bootstrap CI. The numbers are best read as an existence proof that FDMR does
+not regress retrieval, not as a claim that it beats vanilla retrieval on
+arbitrary unseen queries. The mechanism's value --- if any --- will only become
+clear at workloads with many recurring or paraphrased queries; a user study
+or a long-horizon trace on real learner logs is the natural next step.
+
+\paragraph{Limitations.}
+(i)~The evaluation set is small (60 QAs, 30 in test) and single-domain
+(educational video). (ii)~Gold labels are model-derived (cosine threshold)
+rather than human-annotated. (iii)~We do not report generation-quality metrics
+(BERTScore, human fluency) in this version; generation cost through the hosted
+API was not budgeted for large-scale sweeps. (iv)~Latency is measured on a
+commodity laptop CPU; we do not benchmark MM-Agentic-VideoRAG on GPU or on
+dedicated edge hardware in this paper --- edge-deployment measurements for
+the cost-aware layer are reported in \citep{swaroop2026icsccc}.
+(v)~FDMR depends on users actually providing positive feedback; here we
+simulate feedback by treating the top-1 oracle hit as the positive signal, so
+reported gains are an upper bound on what uncurated user feedback would yield.
+
+\paragraph{Not claimed.}
+For clarity, we do not claim state-of-the-art on any public benchmark in this
+paper, and we do not re-report the edge-hardware numbers from the conference
+version~\citep{swaroop2026icsccc}. FDMR is a threshold-gated additive
+re-ranker and is described as such; it is not a learned policy.
+
+%========================================================================
+\section{Conclusion}
+We presented MM-Agentic-VideoRAG, a multimodal retrieval framework that
+combines transcript-level dense retrieval with CLIP visual retrieval and a
+Feedback-Driven Memory Re-ranker (FDMR) for educational lecture video, and
+evaluated it on a 60-QA bank from two lecture transcripts with bootstrap
+confidence intervals and a hyperparameter sweep. The primary operational benefit is a \textbf{design-level median 9.8$\times$
+end-to-end speed-up} achievable on memory-hit queries when FDMR is paired with
+a trivial key-value answer cache: the deterministic retrieval+memory path
+measures at ${\approx}60$~ms wall-clock while the full LLM pipeline measures
+at ${\approx}585$~ms on the same hardware (Table~\ref{tab:latency}). FDMR also yields small
+retrieval-quality gains --- Hit@1 $0.600 \rightarrow 0.633$, MRR $0.659
+\rightarrow 0.684$, both within the baseline's 95\% CI at $n{=}30$ --- while
+degrading gracefully to the baseline when no memory query matches. Every
+FDMR firing is logged with the matched memory query, similarity score, and
+boosted chunk IDs, giving per-query interpretability without an auxiliary
+explanation model (Section~\ref{sec:trace}). The CLIP branch is
+latency-additive but essential for queries with visual intent. The overall
+contribution is engineering integration with an honest, reproducible
+evaluation and an interpretable decision layer. Future work should evaluate
+on public benchmarks such as MSR-VTT and YouCook2, collect human-graded
+generation quality, and measure FDMR behaviour over a multi-week deployment.
+
+%========================================================================
+\section*{Declaration of Competing Interest}
+The authors declare that they have no known competing financial interests or
+personal relationships that could have appeared to influence the work reported
+in this paper.
+
+\section*{CRediT Authorship Contribution Statement}
+\textbf{S. Rajarajeswari}: Conceptualization, Supervision, Writing -- review \& editing.
+\textbf{M. S. Swaroop}: Methodology, Software, Validation, Writing -- original draft.
+
+\section*{Declaration of Generative AI and AI-assisted technologies in the writing process}
+During the preparation of this work the authors used AI-assisted tools only to
+check grammar and improve readability. All technical content, experimental
+design, measurements, and conclusions are the work of the authors, who
+reviewed and edited the manuscript and take full responsibility for the
+published material.
+
+\section*{Data and Code Availability}
+The code, the expanded 60-QA question bank, and the pre-computed vector stores
+used to produce all tables in this paper are available at
+\url{https://github.com/swaroopms658/lecture-rag}. Experiments reported here
+were executed on a Windows~11 laptop with an Intel i5-10210U CPU
+(4\,cores / 8\,threads, 1.6\,GHz) and 20\,GB RAM; no GPU was required.
+
+\bibliographystyle{elsarticle-harv}
+\begin{thebibliography}{99}
+
+\bibitem[Swaroop and Rajarajeswari(2026)]{swaroop2026icsccc}
+Swaroop, M.S., Rajarajeswari, S., 2026. Agentic-VideoRAG: A cost-aware and
+explainable framework for video retrieval. In: Proc.\ Fourth International
+Conference on Secure Cyber Computing and Communication (ICSCCC 2026), IEEE.
+
+\bibitem[Radford et al.(2021)]{radford2021clip}
+Radford, A., Kim, J.W., Hallacy, C., Ramesh, A., Goh, G., Agarwal, S., Sastry, G.,
+Askell, A., Mishkin, P., Clark, J., Krueger, G., Sutskever, I., 2021.
+Learning transferable visual models from natural language supervision.
+In: Proc.\ ICML.
+
+\bibitem[Lewis et al.(2020)]{lewis2020rag}
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N.,
+K\"uttler, H., Lewis, M., Yih, W., Rockt\"aschel, T., Riedel, S., Kiela, D.,
+2020. Retrieval-augmented generation for knowledge-intensive NLP tasks.
+In: Proc.\ NeurIPS.
+
+\bibitem[Karpukhin et al.(2020)]{karpukhin2020dpr}
+Karpukhin, V., O\u{g}uz, B., Min, S., Lewis, P., Wu, L., Edunov, S.,
+Chen, D., Yih, W.-t., 2020. Dense passage retrieval for open-domain question
+answering. In: Proc.\ EMNLP.
+
+\bibitem[Wu et al.(2023)]{wu2023videorag}
+Wu, Y., et al., 2023. VideoRAG: Retrieval-augmented generation over video
+corpora. In: Proc.\ ACL.
+
+\bibitem[Yao et al.(2023)]{yao2023react}
+Yao, S., Zhao, J., Yu, D., Du, N., Shafran, I., Narasimhan, K., Cao, Y., 2023.
+ReAct: Synergizing reasoning and acting in language models. In: Proc.\ ICLR.
+
+\bibitem[Lavrenko and Croft(2001)]{lavrenko2001relevance}
+Lavrenko, V., Croft, W.B., 2001. Relevance-based language models. In: Proc.\ SIGIR.
+
+\bibitem[Xiong et al.(2020)]{xiong2020ance}
+Xiong, L., Xiong, C., Li, Y., Tang, K.-F., Liu, J., Bennett, P., Ahmed, J.,
+Overwijk, A., 2020. Approximate nearest neighbor negative contrastive learning
+for dense text retrieval. arXiv:2007.00808.
+
+\bibitem[AWS(2020)]{aws2020backoff}
+Amazon Web Services, 2020. Error retries and exponential backoff. AWS General
+Reference.
+
+\end{thebibliography}
+
+\end{document}

@@ -23,6 +23,8 @@ from src.demo_utils import (
     DEMO_QUERY,
     COLD_START_CSV,
     ABLATION_CSV,
+    inject_global_css,
+    ORANGE, ORANGE_DARK, ORANGE_BG, ORANGE_100, ORANGE_200,
 )
 
 
@@ -31,6 +33,8 @@ st.set_page_config(
     page_icon="📖",
     layout="wide",
 )
+
+inject_global_css()
 
 N_STEPS = 7
 
@@ -57,18 +61,34 @@ def go_restart():
     st.session_state.sim_step = 0
 
 
-# ── progress bar ────────────────────────────────────────────────────────────
+# ── page header ─────────────────────────────────────────────────────────────
+st.markdown(
+    f"""
+    <div style="background:linear-gradient(135deg,{ORANGE_DARK} 0%,{ORANGE} 100%);
+                border-radius:12px;padding:1.2rem 2rem;margin-bottom:1.2rem;color:#fff;
+                display:flex;align-items:center;justify-content:space-between">
+        <div>
+            <h3 style="margin:0;color:#fff;font-weight:800">ITMA — Simulation Walkthrough</h3>
+            <p style="margin:0;opacity:0.88;font-size:0.88rem">
+                Stepped narrative: cold-start retrieval · memory adaptation · results
+            </p>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ── progress bar + navigation ────────────────────────────────────────────────
 step = st.session_state.sim_step
 st.progress((step + 1) / N_STEPS, text=f"Step {step + 1} of {N_STEPS}")
 
-# ── navigation buttons ───────────────────────────────────────────────────────
 nav_left, nav_mid, nav_right = st.columns([1, 6, 1])
 with nav_left:
     if step > 0:
         st.button("← Back", on_click=go_back, use_container_width=True)
 with nav_right:
     if step < N_STEPS - 1:
-        st.button("Next →", on_click=go_next, use_container_width=True)
+        st.button("Next →", on_click=go_next, type="primary", use_container_width=True)
     else:
         st.button("↩ Restart", on_click=go_restart, use_container_width=True)
 
@@ -179,15 +199,17 @@ elif step == 1:
     st.divider()
     st.markdown("##### How all six project objectives are addressed by ITMA")
 
-    def _sim_card(num, icon, title, items, note, bg):
-        li = "".join(f"<li>{s}</li>" for s in items)
+    def _sim_card(num, icon, title, items, note, bg="#FFF7ED"):
+        li = "".join(f"<li style='color:#44403C'>{s}</li>" for s in items)
         return f"""
-        <div style="border:1px solid rgba(128,128,128,0.3);border-radius:8px;
-                    padding:1rem;background:{bg};color:inherit;height:100%">
-          <div style="font-size:0.72rem;opacity:0.55;margin-bottom:0.25rem">OBJECTIVE {num}</div>
-          <div style="font-weight:700;font-size:0.97rem;margin-bottom:0.5rem">{icon} {title}</div>
+        <div style="border:1.5px solid #FED7AA;border-radius:10px;
+                    padding:1rem;background:{bg};color:#1C1917;height:100%;
+                    box-shadow:0 1px 6px rgba(249,115,22,0.07)">
+          <div style="font-size:0.68rem;font-weight:700;color:#F97316;margin-bottom:0.3rem;
+                      letter-spacing:0.08em;text-transform:uppercase">OBJECTIVE {num}</div>
+          <div style="font-weight:700;font-size:0.97rem;margin-bottom:0.5rem;color:#1C1917">{icon} {title}</div>
           <ol style="margin:0 0 0.5rem 0;padding-left:1.15rem;font-size:0.86rem;line-height:1.75">{li}</ol>
-          <div style="font-size:0.8rem;opacity:0.65;border-top:1px solid rgba(128,128,128,0.2);
+          <div style="font-size:0.8rem;color:#78716C;border-top:1px solid #FED7AA;
                       padding-top:0.4rem">{note}</div>
         </div>"""
 
@@ -197,23 +219,20 @@ elif step == 1:
             ["FAISS index loaded once from disk, reused every query",
              "Chunk embeddings cached after first encode",
              "Repeated queries served without re-encoding"],
-            "src: ITMARetriever._chunk_emb_cache",
-            "rgba(31,119,180,0.08)"), unsafe_allow_html=True)
+            "src: ITMARetriever._chunk_emb_cache"), unsafe_allow_html=True)
     with r1b:
         st.markdown(_sim_card("2", "🧠", "Smart Memory",
             ["Memory bank stores helpful (query, chunk) pairs with weights",
              "At query time: bank is attended → memory summary m",
              "ID-boost re-ranks chunks matched to similar past queries",
              "Counterfactual reweighting updates weights from feedback"],
-            "src: MemoryBank, record_feedback()",
-            "rgba(44,160,44,0.08)"), unsafe_allow_html=True)
+            "src: MemoryBank, record_feedback()", "#FFEDD5"), unsafe_allow_html=True)
     with r1c:
         st.markdown(_sim_card("3", "📊", "Performance Evaluation",
             ["Hit@5, MRR@10, nDCG@10 measured at N=0,5,10,20,30,50",
              "Compared against 5 baselines on 59-item held-out test split",
              "ITMA N=50: H@5 0.932 > CFRAG-lite 0.915 without retraining"],
-            "src: analysis/cold_start.csv, Figure 1",
-            "rgba(214,39,40,0.06)"), unsafe_allow_html=True)
+            "src: analysis/cold_start.csv, Figure 1"), unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top:0.5rem'></div>", unsafe_allow_html=True)
 
@@ -224,24 +243,21 @@ elif step == 1:
              "Reason: scoring head evaluates (query, chunk, memory summary)",
              "Act: re-ranked top-K returned as retrieval response",
              "Reflect: feedback updates memory → future queries benefit"],
-            "src: ITMARetriever._rank() — full ReAct loop",
-            "rgba(148,103,189,0.08)"), unsafe_allow_html=True)
+            "src: ITMARetriever._rank() — full ReAct loop", "#FFEDD5"), unsafe_allow_html=True)
     with r2b:
         st.markdown(_sim_card("5", "🎙️", "Optimise ASR for Edge Computing",
             ["faster-whisper INT8 quantization: ~4× less memory than FP32",
              "Built-in VAD filter skips silent segments, cuts hallucinations",
              "Falls back to openai-whisper if faster-whisper unavailable",
              "Transcripts chunked → embedded → 103 FAISS chunks across 5 domains"],
-            "src: src/transcribe.py — INT8 + VAD, CPU-only",
-            "rgba(255,127,14,0.07)"), unsafe_allow_html=True)
+            "src: src/transcribe.py — INT8 + VAD, CPU-only"), unsafe_allow_html=True)
     with r2c:
         st.markdown(_sim_card("6", "💾", "Cost-Aware Caching Logic",
             ["FAISS store checked on disk before rebuild (skip-if-exists)",
              "Warm retriever built once, cached for entire session",
              "Chunk embedding cache avoids redundant encoder calls",
              "Answer cache skips LLM for repeated query+context pairs"],
-            "src: answer_cache.py, build_domain_stores.py",
-            "rgba(23,190,207,0.07)"), unsafe_allow_html=True)
+            "src: answer_cache.py, build_domain_stores.py", "#FFEDD5"), unsafe_allow_html=True)
 
 # ── Step 2: Demo query ───────────────────────────────────────────────────────
 elif step == 2:
@@ -254,13 +270,14 @@ elif step == 2:
     st.markdown(
         f"""
         <div style="
-            background: rgba(31, 119, 180, 0.12);
-            border-left: 4px solid #1f77b4;
-            border-radius: 4px;
+            background: {ORANGE_BG};
+            border-left: 4px solid {ORANGE};
+            border-radius: 6px;
             padding: 1rem 1.2rem;
             font-size: 1.15rem;
             font-weight: 600;
-            color: inherit;
+            color: #1C1917;
+            box-shadow: 0 1px 6px rgba(249,115,22,0.08);
         ">
         ❓ {DEMO_QUERY['question']}
         </div>
@@ -295,9 +312,9 @@ elif step == 3:
         st.subheader(label)
         for rank, (text, score, chunk_id) in enumerate(results, start=1):
             is_gold = chunk_id in gold_ids
-            border = "#2ca02c" if is_gold else "rgba(128,128,128,0.3)"
-            bg = "rgba(44, 160, 44, 0.12)" if is_gold else "rgba(128,128,128,0.05)"
-            gold_badge = " &nbsp;<span style='color:#2ca02c;font-weight:600'>✅ gold chunk</span>" if is_gold else ""
+            border = ORANGE if is_gold else "#FED7AA"
+            bg = ORANGE_BG if is_gold else "#FAFAF9"
+            gold_badge = f" &nbsp;<span style='color:{ORANGE_DARK};font-weight:700'>★ gold chunk</span>" if is_gold else ""
             short_id = chunk_id[:12] + "…"
             st.markdown(
                 f"""
@@ -391,13 +408,13 @@ elif step == 5:
 
     def _highlight_itma(row):
         if "ITMA" in row.name:
-            intensity = "0.28" if "N=50" in row.name else "0.18"
-            return [f"background-color: rgba(44,160,44,{intensity}); font-weight: bold"] * len(row)
+            bg = "#FFEDD5" if "N=50" in row.name else "#FFF7ED"
+            return [f"background-color: {bg}; font-weight: bold"] * len(row)
         return [""] * len(row)
 
     def _bold_best(col):
         best = col.max()
-        return ["font-weight: bold; color: #4caf50" if v == best else "" for v in col]
+        return [f"font-weight: bold; color: {ORANGE_DARK}" if v == best else "" for v in col]
 
     styled = (
         df.style
@@ -452,16 +469,18 @@ elif step == 6:
     st.title("Summary")
 
     st.markdown(
-        """
+        f"""
         <div style="
-            background: rgba(44, 160, 44, 0.12);
-            border-radius: 8px;
+            background: linear-gradient(135deg, {ORANGE_DARK} 0%, {ORANGE} 100%);
+            border-radius: 10px;
             padding: 1.5rem 2rem;
-            font-size: 1.15rem;
-            border-left: 5px solid #2ca02c;
-            color: inherit;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: 0.01em;
+            box-shadow: 0 4px 18px rgba(249,115,22,0.25);
         ">
-        <b>Same retriever. No retraining. Adapts as it serves.</b>
+        Same retriever. No retraining. Adapts as it serves.
         </div>
         """,
         unsafe_allow_html=True,
