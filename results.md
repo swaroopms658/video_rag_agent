@@ -28,7 +28,22 @@
 ★ITMA N=50: after 50 online oracle-feedback examples (no retraining). Exceeds CFRAG-lite H@5 by +1.7pp.
 H@1 and R@10 for ITMA N=50: computed by `scripts/compute_n50_metrics.py` (5 seeds, same oracle-feedback-from-test-split protocol as cold_start_eval.py).
 
-> Generation metrics (BS-F1, ROUGE-L, BLEU-4, Faithfulness) for Dense-MiniLM: complete (n=59). Remaining 4 systems running via `python -m src.evaluate --split test --output analysis/results_test --systems bm25 cross_encoder cfrag_lite itma`.
+## Table X — Generation Quality (LectureRAG-75 test split, n=59)
+
+> All systems use Groq llama-3.1-8b-instant for generation (HF Qwen/Qwen2.5-7B-Instruct fallback on rate limit).
+> Faithfulness = LLM-judge score (Dense-MiniLM only; other systems pending add_faithfulness.py).
+> CFRAG-lite lower lexical scores reflect cache-miss-driven fresh generation (different context ordering vs Dense-MiniLM cache entries).
+
+| System | BS-F1 | ROUGE-L | BLEU-4 | Faithfulness |
+|---|---|---|---|---|
+| BM25 | **0.9230** | 0.5129 | 0.2895 | — |
+| Dense-MiniLM | 0.9217 | 0.5132 | 0.2948 | **0.5085** |
+| Cross-Encoder | 0.9151 | 0.4597 | 0.2691 | — |
+| CFRAG-lite† | 0.8962 | 0.3434 | 0.1857 | — |
+| **ITMA (N=0)** | 0.9226 | **0.5142** | **0.2963** | — |
+
+†CFRAG-lite fine-tuned on 174-item train split.
+Source: `analysis/results_test/*.csv` — run `python scripts/extract_gen_metrics.py` to reproduce.
 
 ---
 

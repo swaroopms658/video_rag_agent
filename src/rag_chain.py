@@ -32,7 +32,7 @@ class AgenticRAG:
                 return None
             try:
                 from huggingface_hub import InferenceClient
-                self._hf_client = InferenceClient(provider="auto", api_key=hf_key)
+                self._hf_client = InferenceClient(provider="auto", api_key=hf_key, timeout=60)
             except ImportError:
                 return None
         return self._hf_client
@@ -77,7 +77,7 @@ class AgenticRAG:
                 if response.status_code == 200:
                     return response.json()["choices"][0]["message"]["content"]
                 elif response.status_code == 429:
-                    wait_time = 20 * (4 - retries)
+                    wait_time = 5 * (4 - retries)
                     print(f"  [groq] 429 rate limit, waiting {wait_time}s ...")
                     time.sleep(wait_time)
                     self.key_manager.rotate_key()

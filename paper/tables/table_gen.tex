@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Generation quality on LectureRAG-75 test split (n=59).
+BS-F1 = BERTScore F1; Faithfulness = LLM-judge.}
+\label{tab:gen_quality}
+\begin{tabular}{lrrrr}
+\toprule
+System & BS-F1 & ROUGE-L & BLEU-4 & Faithfulness \\
+\midrule
+BM25 & \textbf{0.9230} & 0.5129 & 0.2895 & --- \\
+Dense-MiniLM & 0.9217 & 0.5132 & 0.2948 & \textbf{0.5085} \\
+Cross-Encoder & 0.9151 & 0.4597 & 0.2691 & --- \\
+CFRAG-lite$^\dagger$ & 0.8962 & 0.3434 & 0.1857 & --- \\
+\textbf{ITMA (N=0)} & 0.9226 & \textbf{0.5142} & \textbf{0.2963} & --- \\
+\bottomrule
+\end{tabular}
+\end{table}

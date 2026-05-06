@@ -16,13 +16,15 @@ DISPLAY = {
     "cfrag_lite": "CFRAG-lite†",
     "itma": "ITMA (N=0)",
 }
-GEN_COLS = ["bertscore_f1", "rouge_l", "bleu_4", "faithfulness"]
+REQUIRED_COLS = ["rouge_l", "bleu_4"]          # must be present to include a system
+OPTIONAL_COLS = ["bertscore_f1", "faithfulness"]  # included if available
 
 
 def read_gen_metrics(path: Path):
     rows = list(csv.DictReader(path.open(encoding="utf-8")))
     out = {}
-    for col in GEN_COLS:
+    all_cols = REQUIRED_COLS + OPTIONAL_COLS
+    for col in all_cols:
         vals = [float(r[col]) for r in rows if r.get(col, "").strip() not in ("", "None")]
         out[col] = (statistics.mean(vals), len(vals)) if vals else (None, 0)
     return out, len(rows)
@@ -36,17 +38,18 @@ def main():
             print(f"  [skip] {sys} — file missing or empty")
             continue
         metrics, n = read_gen_metrics(p)
-        gen_cols_present = all(metrics[c][0] is not None for c in GEN_COLS)
-        if not gen_cols_present:
-            print(f"  [skip] {sys} — no generation columns (retrieval-only CSV, n={n})")
+        if any(metrics[c][0] is None for c in REQUIRED_COLS):
+            print(f"  [skip] {sys} — missing required gen cols (n={n})")
             continue
-        bs = metrics["bertscore_f1"][0]
         rl = metrics["rouge_l"][0]
         b4 = metrics["bleu_4"][0]
-        fa = metrics["faithfulness"][0]
-        n_gen = metrics["bertscore_f1"][1]
+        bs = metrics["bertscore_f1"][0]   # may be None
+        fa = metrics["faithfulness"][0]   # may be None
+        n_gen = metrics["rouge_l"][1]
         rows_out.append((sys, n, n_gen, bs, rl, b4, fa))
-        print(f"  {sys:16s}  n={n_gen:2d}  BS-F1={bs:.4f}  ROUGE-L={rl:.4f}  BLEU-4={b4:.4f}  Faith={fa:.4f}")
+        bs_s = f"{bs:.4f}" if bs is not None else "n/a"
+        fa_s = f"{fa:.4f}" if fa is not None else "n/a"
+        print(f"  {sys:16s}  n={n_gen:2d}  BS-F1={bs_s}  ROUGE-L={rl:.4f}  BLEU-4={b4:.4f}  Faith={fa_s}")
 
     if rows_out:
         print("\n--- Markdown table ---")
@@ -54,7 +57,9 @@ def main():
         print("|---|---|---|---|---|---|")
         for sys, n, n_gen, bs, rl, b4, fa in rows_out:
             name = DISPLAY.get(sys, sys)
-            print(f"| {name} | {n_gen} | {bs:.4f} | {rl:.4f} | {b4:.4f} | {fa:.4f} |")
+            bs_s = f"{bs:.4f}" if bs is not None else "—"
+            fa_s = f"{fa:.4f}" if fa is not None else "—"
+            print(f"| {name} | {n_gen} | {bs_s} | {rl:.4f} | {b4:.4f} | {fa_s} |")
     else:
         print("No completed generation evals found.")
 

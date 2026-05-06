@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Ablation study: head vs.\ ID-boost contribution.
+LectureRAG-75 test split (n=59, 3 seeds). H@5 at N=0 and N=50.}
+\label{tab:ablation}
+\begin{tabular}{lrrr}
+\toprule
+Variant & N=0 H@5 & N=50 H@5 & Adapts? \\
+\midrule
+ITMA (head + boost) & 0.8305 & 0.9379 & \checkmark \\
+ITMA no-boost (head only) & 0.8305 & 0.8305 & $\times$ (flat) \\
+ITMA boost-only & 0.8475 & 0.9379 & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}

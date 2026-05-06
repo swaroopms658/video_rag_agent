@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\small
+\caption{Static retrieval on LectureRAG-75 held-out test split (n=59, k=10).
+\textsuperscript{\textdagger}CFRAG-lite fine-tuned on 174-item train split.
+$\star$ ITMA N=50: 50 oracle-feedback examples, no retraining.}
+\label{tab:retrieval}
+\begin{tabular}{lrrrrr}
+\toprule
+System & H@1 & H@5 & MRR@10 & nDCG@10 & R@10 \\
+\midrule
+BM25 & 0.593 & 0.848 & 0.692 & 0.722 & 0.864 \\
+Dense-MiniLM & 0.525 & 0.848 & 0.638 & 0.695 & 0.898 \\
+Dense-MPNet & 0.475 & 0.797 & 0.623 & 0.692 & 0.941 \\
+Cross-Encoder & 0.644 & 0.898 & 0.747 & 0.789 & 0.949 \\
+Static $\tau$+$\beta$ & 0.525 & 0.848 & 0.638 & 0.695 & 0.898 \\
+CFRAG-lite$^\dagger$ & \textbf{0.729} & 0.915 & \textbf{0.811} & \textbf{0.837} & 0.949 \\
+\midrule
+\textbf{ITMA (N=0)} & 0.508 & 0.831 & 0.625 & 0.688 & 0.907 \\
+\textbf{ITMA (N=50) $\star$} & 0.688 & \textbf{0.932} & 0.790 & 0.832 & \textbf{0.951} \\
+\bottomrule
+\end{tabular}
+\end{table}

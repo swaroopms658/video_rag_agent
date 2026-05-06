@@ -79,7 +79,7 @@ def make_main_table(
 ) -> str:
     """Generate the main results LaTeX table. Returns the LaTeX string."""
     csv_dir = Path(results_dir)
-    csv_files = {p.stem: p for p in csv_dir.glob("*.csv")}
+    csv_files = {p.stem: p for p in csv_dir.glob("*.csv") if not p.stem.endswith("_ret")}
 
     if systems is None:
         # Use canonical order, fall back to alphabetical for unknown systems

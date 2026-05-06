@@ -17,6 +17,7 @@ If gold_context_ids are absent, only generation-quality metrics are computed.
 
 import argparse
 import csv
+import json
 import os
 import time
 
@@ -60,20 +61,43 @@ def evaluate_system(
     csv_path = os.path.join(output_dir, f"{system_name}.csv")
 
     fieldnames = [
-        "question", "gold_answer", "generated_answer",
+        "question", "gold_answer", "generated_answer", "retrieved_contexts",
         "hit_at_1", "hit_at_5", "mrr_score", "ndcg_at_10", "recall_at_10",
         "bertscore_f1", "rouge_l", "bleu_4", "faithfulness",
     ]
+    metric_fields = [f for f in fieldnames if f not in
+                     ("question", "gold_answer", "generated_answer", "retrieved_contexts")]
+    accum = {k: [] for k in metric_fields}
 
-    accum = {k: [] for k in fieldnames[3:]}  # skip text fields
+    # Resume: load already-completed rows to skip re-processing
+    done_questions: set[str] = set()
+    if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+        try:
+            existing = list(csv.DictReader(open(csv_path, encoding="utf-8")))
+            done_questions = {r["question"] for r in existing if r.get("question")}
+            for r in existing:
+                for key in accum:
+                    val = r.get(key, "")
+                    if val and val != "None":
+                        try:
+                            accum[key].append(float(val))
+                        except ValueError:
+                            pass
+            print(f"  [resume] {len(done_questions)} rows already done for {system_name}")
+        except Exception as e:
+            print(f"  [resume] could not read existing CSV: {e}")
 
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+    write_mode = "a" if done_questions else "w"
+    with open(csv_path, write_mode, newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        if not done_questions:
+            writer.writeheader()
 
         for item in eval_data:
             question = item.get("question", "")
             gold_answer = item.get("ground_truth_answer", "")
+            if question in done_questions:
+                continue  # already processed
             gold_ids = item.get("gold_context_ids")  # may be None
 
             if not question or not gold_answer:
@@ -120,6 +144,7 @@ def evaluate_system(
                 "question": question,
                 "gold_answer": gold_answer,
                 "generated_answer": generated_answer,
+                "retrieved_contexts": json.dumps(answer_contexts, ensure_ascii=False),
                 "hit_at_1": h1, "hit_at_5": h5, "mrr_score": mrr_val,
                 "ndcg_at_10": ndcg, "recall_at_10": rec,
                 "bertscore_f1": round(bs, 4) if bs is not None else None,
@@ -128,6 +153,7 @@ def evaluate_system(
                 "faithfulness": faith,
             }
             writer.writerow(row)
+            f.flush()
 
             for key in accum:
                 val = row[key]
@@ -176,7 +202,11 @@ def _build_agent_for_system(system_name: str, store_path: str,
     from src.baselines import BaselineAgent
     from scripts.cold_start_eval import build_retriever  # reuse the factory
 
-    retriever = build_retriever(system_name, store_path, checkpoint)
+    retriever = build_retriever(
+        system_name, store_path,
+        checkpoint=checkpoint,
+        checkpoint_cfrag="checkpoints/cfrag_lite",
+    )
     return BaselineAgent(name=system_name, retriever=retriever, rag_agent=rag_agent)
 
 
