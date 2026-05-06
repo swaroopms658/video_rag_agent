@@ -25,6 +25,20 @@ __pycache__/
 # Generated runtime artifacts
 data/answer_cache.json
 
+# Model checkpoints (large binaries)
+checkpoints/*.pt
+
+# FAISS indexes and pickle stores
+*.faiss
+*.pkl
+
+# Intermediate analysis files
+analysis/cold_start_itma_v2.csv
+analysis/results/cold_start_base.csv
+
+# Cookies
+*.txt
+
 # LaTeX/Overleaf temporary files (optional but good practice)
 *.aux
 *.log
