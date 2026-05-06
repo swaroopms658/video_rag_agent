@@ -39,6 +39,10 @@ class ITMARetriever(BaseRetriever):
 
     - Frozen scoring head (pretrained once, never retrained at deploy).
     - Online memory bank (no gradients, updated after each query).
+
+    Ablation flags:
+      use_scoring_head=False  → skip head, use only cosine sim (+ optional ID-boost)
+      use_id_boost=False      → skip ID-boost, rely only on scoring head
     """
 
     def __init__(
@@ -50,10 +54,14 @@ class ITMARetriever(BaseRetriever):
         lam: float = 0.05,
         eta: float = 0.05,
         device: str = "cpu",
+        use_scoring_head: bool = True,
+        use_id_boost: bool = True,
     ):
+        self._use_scoring_head = use_scoring_head
+        self._use_id_boost = use_id_boost
         self._dense = SimpleRetriever(store_path)
         ckpt = checkpoint if checkpoint and os.path.exists(checkpoint) else None
-        self._head = FrozenScoringHead(checkpoint_path=ckpt, device=device)
+        self._head = FrozenScoringHead(checkpoint_path=ckpt, device=device) if use_scoring_head else None
         self._memory = MemoryBank(
             capacity=memory_capacity,
             lam=lam,
@@ -167,12 +175,20 @@ class ITMARetriever(BaseRetriever):
             self._last_attended_alphas = []
 
         # Score all candidates
-        scores = self._head.score(q_emb, c_embs, m_batch)   # (N,)
+        if self._use_scoring_head:
+            scores = self._head.score(q_emb, c_embs, m_batch)   # (N,)
+        else:
+            # Ablation: no scoring head — use cosine similarity directly
+            from src.itma.scoring_head import BETA_DENSE
+            q_norm = q_emb / (np.linalg.norm(q_emb) + 1e-8)
+            c_norms = c_embs / (np.linalg.norm(c_embs, axis=1, keepdims=True) + 1e-8)
+            cos_sim = (c_norms @ q_norm).astype(np.float32)
+            scores = (cos_sim + 1.0) / 2.0   # scale to [0,1]
 
         # Memory ID-boost: if a candidate chunk was explicitly marked helpful for a
         # past query that is similar to the current query, boost its score.
         # This bypasses the under-trained gate and directly rewards known-good chunks.
-        if self._memory.size() > 0:
+        if self._use_id_boost and self._memory.size() > 0:
             q_norm_vec = q_emb / (np.linalg.norm(q_emb) + 1e-8)
             c_ids_set = set(c_ids)
             bonus = np.zeros(len(c_ids), dtype=np.float32)

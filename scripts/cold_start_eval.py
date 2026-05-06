@@ -76,6 +76,23 @@ def build_retriever(system_name: str, store_path: str, checkpoint: str = None):
     elif system_name == "itma":
         from src.itma.integration import ITMARetriever
         return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None)
+    elif system_name == "itma_no_boost":
+        from src.itma.integration import ITMARetriever
+        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None,
+                             use_id_boost=False)
+    elif system_name == "itma_boost_only":
+        from src.itma.integration import ITMARetriever
+        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None,
+                             use_scoring_head=False, use_id_boost=True)
+    elif system_name.startswith("itma_l"):
+        # Sensitivity sweep: itma_l<lam>_e<eta>  e.g. itma_l0.01_e0.05
+        from src.itma.integration import ITMARetriever
+        import re
+        m = re.match(r"itma_l([0-9.]+)_e([0-9.]+)", system_name)
+        lam = float(m.group(1)) if m else 0.05
+        eta = float(m.group(2)) if m else 0.05
+        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None,
+                             lam=lam, eta=eta)
     elif system_name == "itma_cross":
         from src.itma.integration import ITMARetriever
         return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None)

@@ -1,8 +1,6 @@
 whisper
 sentence-transformers
 scikit-learn
-langchain
-gpt4all0
 torch
 transformers
 python-dotenv
@@ -16,3 +14,7 @@ sacrebleu
 scipy
 rank-bm25
 datasets
+matplotlib
+numpy
+groq
+streamlit

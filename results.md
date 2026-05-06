@@ -94,12 +94,33 @@ Key claims:
 
 ---
 
+## Table 3 — Ablation Study (LectureRAG-75, all items, 3 seeds)
+
+> Ablation isolates the contribution of the scoring head vs. ID-boost mechanism.
+
+| System | N=0 H@5 | N=50 H@5 | N=0 MRR | N=50 MRR | Adapts? |
+|---|---|---|---|---|---|
+| ITMA (head + boost) | 0.791 | 0.870 | 0.516 | 0.664 | ✓ |
+| ITMA no-boost (head only) | 0.791 | **0.791** | 0.516 | **0.516** | ✗ |
+| ITMA boost-only | **0.809** | **0.875** | **0.530** | **0.674** | ✓ |
+
+**Key finding:** The scoring head alone (no ID-boost) shows zero adaptation — the gate mechanism is ineffective.
+The ID-boost alone achieves full adaptation AND better cold-start safety (0.809 vs 0.791).
+The combined system adapts via ID-boost; the scoring head contributes a marginal initialization penalty at N=0
+that is recovered by N=50.
+
+**Paper framing:** ITMA's adaptation arises entirely from the counterfactual-weighted ID-boost.
+The scoring head is a frozen ranker that provides a structured embedding space;
+the memory bank + ID-boost is the adaptive component.
+
+---
+
 ## Artifact Paths
 
 | Artifact | Path |
 |---|---|
-| QA benchmark | `data/lecture_rag_75/qa.jsonl` (115 items, 5 domains) |
-| Splits | `data/lecture_rag_75/splits.json` (69/22/24 train/dev/test) |
+| QA benchmark | `data/lecture_rag_75/qa.jsonl` (400+ items target, 5 domains) |
+| Splits | `data/lecture_rag_75/splits.json` (60/20/20 train/dev/test) |
 | Combined FAISS store | `data/lecture_rag_75/combined/` |
 | ITMA checkpoint (v2, 414 triples) | `checkpoints/itma_head.pt` |
 | ITMA checkpoint (v1, 44 triples) | `checkpoints/itma_head_v1_44triples.pt` |
@@ -108,5 +129,12 @@ Key claims:
 | Per-system CSVs (n=115 retrieval-only) | `analysis/results_115/{bm25,dense_minilm,...}.csv` |
 | MS-MARCO results | `analysis/ms_marco/{bm25,dense_minilm,...}.csv` |
 | Cold-start CSV | `analysis/cold_start.csv` |
+| Ablation CSV | `analysis/ablation_cold_start.csv` |
+| Sensitivity sweep CSV | `analysis/sensitivity.csv` |
 | Cold-start figure | `analysis/figures/cold_start_curve.pdf` |
+| Ablation figure | `analysis/figures/ablation_curve.pdf` |
+| Sensitivity heatmap | `analysis/figures/sensitivity_heatmap.pdf` |
 | LaTeX Table 1 | `python analysis/make_tables.py` |
+| Run ablation | `python scripts/cold_start_eval.py --systems itma itma_no_boost itma_boost_only --checkpoint checkpoints/itma_head.pt --out analysis/ablation_cold_start.csv` |
+| Run sensitivity sweep | `python scripts/sensitivity_eval.py` |
+| Expand benchmark | `python scripts/expand_benchmark.py --max-chunks 60 --n-per-chunk 3` |

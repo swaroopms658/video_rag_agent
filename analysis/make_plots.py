@@ -29,10 +29,12 @@ OUT_DIR = "analysis/figures"
 
 # System display names and colours
 SYSTEM_STYLE = {
-    "dense_minilm": ("Dense-MiniLM", "#1f77b4", "-"),
-    "static_memory": ("Static τ+β", "#ff7f0e", "--"),
-    "cfrag_lite": ("CFRAG-lite", "#d62728", "-."),
-    "itma": ("ITMA (ours)", "#2ca02c", "-"),
+    "dense_minilm":    ("Dense-MiniLM",          "#1f77b4", "-"),
+    "static_memory":   ("Static τ+β",             "#ff7f0e", "--"),
+    "cfrag_lite":      ("CFRAG-lite",             "#d62728", "-."),
+    "itma":            ("ITMA (head+boost)",       "#2ca02c", "-"),
+    "itma_no_boost":   ("ITMA no-boost (head)",   "#9467bd", ":"),
+    "itma_boost_only": ("ITMA boost-only",        "#8c564b", "--"),
 }
 
 
@@ -181,9 +183,28 @@ def plot_domain_bars(
     print(f"Saved domain bars -> {out_path}")
 
 
+def plot_ablation_curve(
+    csv_path: str = "analysis/ablation_cold_start.csv",
+    metric: str = "hit_at_5",
+    out_path: Optional[str] = None,
+):
+    """Figure 2: ablation cold-start curve (itma vs itma_no_boost vs itma_boost_only)."""
+    ABLATION_STYLE = {
+        "itma":            ("ITMA (head+boost)",      "#2ca02c", "-"),
+        "itma_no_boost":   ("ITMA no-boost (head)",   "#9467bd", ":"),
+        "itma_boost_only": ("ITMA boost-only",        "#8c564b", "--"),
+    }
+    plot_cold_start_curve(
+        csv_path=csv_path,
+        metric=metric,
+        out_path=out_path or "analysis/figures/ablation_curve.pdf",
+        systems=list(ABLATION_STYLE.keys()),
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate paper figures")
-    parser.add_argument("--figure", choices=["cold_start", "domain_bars", "all"],
+    parser.add_argument("--figure", choices=["cold_start", "domain_bars", "ablation", "all"],
                         default="all")
     parser.add_argument("--results-dir", default=RESULTS_DIR)
     parser.add_argument("--cold-start-csv", default=COLD_START_CSV)
@@ -191,6 +212,14 @@ def main():
     parser.add_argument("--out", default=None)
     parser.add_argument("--systems", nargs="*", default=None)
     args = parser.parse_args()
+
+    if args.figure in ("ablation", "all"):
+        ablation_csv = "analysis/ablation_cold_start.csv"
+        if os.path.exists(ablation_csv):
+            out = os.path.join(args.out, "ablation_curve.pdf") if args.out else None
+            plot_ablation_curve(csv_path=ablation_csv, metric=args.metric, out_path=out)
+        else:
+            print(f"[skip] ablation_cold_start.csv not found")
 
     if args.figure in ("cold_start", "all"):
         if os.path.exists(args.cold_start_csv):

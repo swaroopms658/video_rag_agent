@@ -20,8 +20,9 @@ except ImportError:  # pragma: no cover - fallback for minimal installs
 
 
 APP_NAME = "Agentic Video RAG"
-DEFAULT_VECTOR_STORE = "data/vector_store.pkl"
-ALT_VECTOR_STORE = "data/vector_store_7.pkl"
+DEFAULT_VECTOR_STORE = "data/lecture_rag_75/combined"
+_LEGACY_STORE = "data/vector_store.pkl"
+_LEGACY_STORE_7 = "data/vector_store_7.pkl"
 
 
 def _render_bot_image(width: int = 28) -> str:
@@ -241,8 +242,10 @@ def _resolve_vector_store(requested_path: Optional[str]) -> str:
         return requested_path
     if os.path.exists(DEFAULT_VECTOR_STORE):
         return DEFAULT_VECTOR_STORE
-    if os.path.exists(ALT_VECTOR_STORE):
-        return ALT_VECTOR_STORE
+    if os.path.exists(_LEGACY_STORE):
+        return _LEGACY_STORE
+    if os.path.exists(_LEGACY_STORE_7):
+        return _LEGACY_STORE_7
     return DEFAULT_VECTOR_STORE
 
 

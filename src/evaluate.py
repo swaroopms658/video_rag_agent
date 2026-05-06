@@ -35,8 +35,8 @@ from src.eval_utils import (
     bleu_4,
 )
 
-EVAL_SET_PATH = "data/eval_set.json"
-VECTOR_STORE_PATH = "data/vector_store.pkl"
+EVAL_SET_PATH = "data/lecture_rag_75/qa.jsonl"
+VECTOR_STORE_PATH = "data/lecture_rag_75/combined"
 RESULTS_DIR = "analysis/results"
 TOP_K_RETRIEVAL = 10   # for retrieval metrics
 TOP_K_ANSWER = 3       # for answer generation

@@ -32,12 +32,22 @@ checkpoints/*.pt
 *.faiss
 *.pkl
 
-# Intermediate analysis files
+# Intermediate analysis files (merged into primary results)
 analysis/cold_start_itma_v2.csv
 analysis/results/cold_start_base.csv
 
-# Cookies
+# Generated QA candidates (unverified drafts — not for tracking)
+data/lecture_rag_75/candidates/*_expanded.jsonl
+
+# Video/media files
+*.mp4
+*.mp3
+*.wav
+data/frames_metadata*.json
+
+# Cookies and credentials
 *.txt
+*.cookies
 
 # LaTeX/Overleaf temporary files (optional but good practice)
 *.aux
