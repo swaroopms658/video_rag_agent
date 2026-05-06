@@ -206,15 +206,23 @@ def train(
                 # Triplet contrastive loss
                 triplet_loss = F.relu(margin + s_neg - s_pos).mean()
 
-                # Gate regularisation: gate should be near 0 when memory empty
-                # m_batch is zero for empty-memory items (gate_t == 0)
+                # Gate regularisation:
+                #   (a) penalise open gate when memory is empty (cold-start safety)
+                #   (b) penalise closed gate when memory has positive entries (adaptation)
                 gate_logits_raw = model.gate(
                     torch.cat([q_embs, m_batch], dim=-1)
                 ).squeeze(-1)
-                # Penalise open gate when memory is empty
-                empty_mask = (gate_t == 0).float()
-                gate_reg_loss = (torch.sigmoid(gate_logits_raw) * empty_mask).mean()
+                gate_sig = torch.sigmoid(gate_logits_raw)
 
+                empty_mask  = (gate_t == 0).float()
+                filled_mask = (gate_t == 1.0).float()
+
+                # Closed-gate loss when memory empty (preserves cold-start safety)
+                gate_closed_loss = (gate_sig * empty_mask).mean()
+                # Open-gate loss when memory has positive entries (enables adaptation)
+                gate_open_loss = ((1.0 - gate_sig) * filled_mask).mean()
+
+                gate_reg_loss = gate_closed_loss + 0.5 * gate_open_loss
                 loss = triplet_loss + gate_reg * gate_reg_loss
 
             optimizer.zero_grad()

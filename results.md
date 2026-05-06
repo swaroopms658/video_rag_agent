@@ -3,7 +3,8 @@
 **Benchmark:** LectureRAG-75 (5 domains, 291 QA items total; 59-item held-out test split)
 **Domains:** generative_ai (19), computer_networks (85), database_systems (89), machine_learning (48), operating_systems (50)
 **Splits:** 174 train / 58 dev / 59 test (60/20/20)
-**ITMA checkpoint:** pretrained on 414 triples from held-out domains, 15 epochs, loss 0.1532.
+**ITMA checkpoint (v2) [production]:** pretrained on 414 triples from held-out domains, 15 epochs, loss 0.1532. Best checkpoint.
+**ITMA checkpoint (v3) [experiment]:** retrained with bidirectional gate supervision (open-gate incentive added). N=0 H@5 identical (0.830), N=50 H@5 slightly lower (0.925 vs 0.932). Gate fix is theoretically sound but doesn't improve end-to-end performance — ID-boost drives all adaptation regardless of gate. v2 remains the production checkpoint.
 
 ---
 
@@ -21,10 +22,13 @@
 | Static-Memory | 0.525 | 0.848 | 0.638 | 0.695 | 0.898 |
 | CFRAG-lite† | **0.729** | **0.915** | **0.811** | **0.837** | **0.949** |
 | **ITMA (N=0)** | 0.508 | 0.831 | 0.625 | 0.688 | 0.907 |
+| **ITMA (N=50) ★** | **0.688** | **0.932** | **0.790** | **0.832** | **0.951** |
 
 †CFRAG-lite fine-tuned on 174-item train split.
+★ITMA N=50: after 50 online oracle-feedback examples (no retraining). Exceeds CFRAG-lite H@5 by +1.7pp.
+H@1 and R@10 for ITMA N=50: computed by `scripts/compute_n50_metrics.py` (5 seeds, same oracle-feedback-from-test-split protocol as cold_start_eval.py).
 
-> Generation metrics (BS-F1, ROUGE-L, BLEU-4) pending — run via `python -m src.evaluate --split test`
+> Generation metrics (BS-F1, ROUGE-L, BLEU-4, Faithfulness) for Dense-MiniLM: complete (n=59). Remaining 4 systems running via `python -m src.evaluate --split test --output analysis/results_test --systems bm25 cross_encoder cfrag_lite itma`.
 
 ---
 
