@@ -60,7 +60,8 @@ class ITMARetriever(BaseRetriever):
         self._use_scoring_head = use_scoring_head
         self._use_id_boost = use_id_boost
         self._dense = SimpleRetriever(store_path)
-        ckpt = checkpoint if checkpoint and os.path.exists(checkpoint) else None
+        ckpt_path = checkpoint if checkpoint else DEFAULT_CHECKPOINT
+        ckpt = ckpt_path if ckpt_path and os.path.exists(ckpt_path) else None
         self._head = FrozenScoringHead(checkpoint_path=ckpt, device=device) if use_scoring_head else None
         self._memory = MemoryBank(
             capacity=memory_capacity,

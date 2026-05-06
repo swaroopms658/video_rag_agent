@@ -54,7 +54,8 @@ def load_test_data(qa_path: str, splits_path: str, split: str = "all") -> list[d
     return [it for it in items if it.get("id") in allowed_ids]
 
 
-def build_retriever(system_name: str, store_path: str, checkpoint: str = None):
+def build_retriever(system_name: str, store_path: str, checkpoint: str = None,
+                    checkpoint_itma: str = None, checkpoint_cfrag: str = None):
     if system_name == "dense_minilm":
         from src.agent import SimpleRetriever
         return SimpleRetriever(store_path)
@@ -72,17 +73,21 @@ def build_retriever(system_name: str, store_path: str, checkpoint: str = None):
         return StaticMemoryRetriever(store_path)
     elif system_name == "cfrag_lite":
         from src.baselines.cfrag_lite import CFRAGLiteRetriever
-        return CFRAGLiteRetriever(store_path, checkpoint=checkpoint)
+        ckpt = checkpoint_cfrag or checkpoint
+        return CFRAGLiteRetriever(store_path, checkpoint=ckpt)
     elif system_name == "itma":
         from src.itma.integration import ITMARetriever
-        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None)
+        ckpt = checkpoint_itma or checkpoint
+        return ITMARetriever(store_path, checkpoint=ckpt, memory_path=None)
     elif system_name == "itma_no_boost":
         from src.itma.integration import ITMARetriever
-        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None,
+        ckpt = checkpoint_itma or checkpoint
+        return ITMARetriever(store_path, checkpoint=ckpt, memory_path=None,
                              use_id_boost=False)
     elif system_name == "itma_boost_only":
         from src.itma.integration import ITMARetriever
-        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None,
+        ckpt = checkpoint_itma or checkpoint
+        return ITMARetriever(store_path, checkpoint=ckpt, memory_path=None,
                              use_scoring_head=False, use_id_boost=True)
     elif system_name.startswith("itma_l"):
         # Sensitivity sweep: itma_l<lam>_e<eta>  e.g. itma_l0.01_e0.05
@@ -91,11 +96,13 @@ def build_retriever(system_name: str, store_path: str, checkpoint: str = None):
         m = re.match(r"itma_l([0-9.]+)_e([0-9.]+)", system_name)
         lam = float(m.group(1)) if m else 0.05
         eta = float(m.group(2)) if m else 0.05
-        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None,
+        ckpt = checkpoint_itma or checkpoint
+        return ITMARetriever(store_path, checkpoint=ckpt, memory_path=None,
                              lam=lam, eta=eta)
     elif system_name == "itma_cross":
         from src.itma.integration import ITMARetriever
-        return ITMARetriever(store_path, checkpoint=checkpoint, memory_path=None)
+        ckpt = checkpoint_itma or checkpoint
+        return ITMARetriever(store_path, checkpoint=ckpt, memory_path=None)
     else:
         raise ValueError(f"Unknown system: {system_name}")
 
@@ -176,12 +183,16 @@ def main():
     parser = argparse.ArgumentParser(description="Run cold-start curve evaluation")
     parser.add_argument("--qa", default="data/lecture_rag_75/qa.jsonl")
     parser.add_argument("--splits", default="data/lecture_rag_75/splits.json")
-    parser.add_argument("--store", default="data/lecture_rag_75")
+    parser.add_argument("--store", default="data/lecture_rag_75/combined")
     parser.add_argument("--systems", nargs="+",
                         default=["dense_minilm", "static_memory", "cfrag_lite", "itma"])
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
     parser.add_argument("--checkpoint", default=None,
-                        help="ITMA / CFRAG-lite checkpoint path")
+                        help="Shared fallback checkpoint path (deprecated; use --checkpoint-itma/--checkpoint-cfrag)")
+    parser.add_argument("--checkpoint-itma", default="checkpoints/itma_head.pt",
+                        help="ITMA scoring head checkpoint")
+    parser.add_argument("--checkpoint-cfrag", default="checkpoints/cfrag_lite",
+                        help="CFRAG-lite checkpoint directory")
     parser.add_argument("--split", default="all",
                         choices=["all", "train", "dev", "test"],
                         help="Which split to use. Default 'all' for the cold-start curve "
@@ -201,7 +212,9 @@ def main():
         print(f"\nSystem: {sys_name}")
         for seed in args.seeds:
             print(f"  Seed {seed} ...")
-            retriever = build_retriever(sys_name, args.store, args.checkpoint)
+            retriever = build_retriever(sys_name, args.store, args.checkpoint,
+                                        checkpoint_itma=args.checkpoint_itma,
+                                        checkpoint_cfrag=args.checkpoint_cfrag)
             rows = run_cold_start(
                 system_name=sys_name,
                 retriever=retriever,

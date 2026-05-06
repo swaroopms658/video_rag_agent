@@ -1,0 +1,60 @@
+question,domain,difficulty,hit_at_1,hit_at_5,mrr_score,ndcg_at_10,recall_at_10
+What does the OSI model provide for the coordination of standards development?,computer_networks,factual,1,1,1.0,1.0,1.0
+What is the name of the protocol suite that includes TCP?,computer_networks,factual,1,1,1.0,1.0,1.0
+What kind of delivery does TCP provide?,computer_networks,factual,1,1,1.0,1.0,1.0
+What can be inferred about the relationship between TCP and the Internet Protocol (IP)?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What happens to data that is lost during transmission?,computer_networks,factual,1,1,1.0,1.0,1.0
+When was Internet Protocol version 4 (IPv4) first specified?,computer_networks,factual,1,1,1.0,1.0,1.0
+Why did IPv4 address space become too small?,computer_networks,inferential,1,1,1.0,1.0,1.0
+Who developed and maintained the first ARPANET host name mapping file?,computer_networks,factual,0,1,0.2,0.3869,1.0
+How did the term 'firewall' transition from its original meaning to its use in network technology?,computer_networks,inferential,1,1,1.0,1.0,1.0
+Can a logical ER model be developed without a conceptual ER model?,database_systems,inferential,0,1,0.5,0.6309,1.0
+How do some NoSQL systems prevent data loss through lost writes?,database_systems,factual,0,1,0.5,0.6309,1.0
+Why is it important to pay attention to the right benchmarks when evaluating the performance of NoSQL databases?,database_systems,inferential,0,0,0.0,0.0,0.0
+What is the goal of concurrent implementations of transaction processing?,database_systems,factual,0,1,0.5,0.6309,1.0
+What is affected by the CPU path length in the cost estimation of query plans?,database_systems,inferential,1,1,1.0,1.0,1.0
+What role do LLMs play in the personal shopping agent's ability to perform tasks like monitoring price fluctuations and handling checkout processes?,generative_ai,inferential,1,1,1.0,1.0,1.0
+How will the most powerful AI system be different from current systems?,generative_ai,inferential,1,1,1.0,1.0,1.0
+"What field did researchers from other disciplines, including John Hopfield, David Rumelhart, and Geoffrey Hinton, continue?",machine_learning,factual,0,0,0.0,0.0,0.0
+What is the purpose of a validation set in supervised learning?,machine_learning,factual,1,1,1.0,1.0,1.0
+What type of learning algorithm is required to learn a highly complex function from a large amount of training data?,machine_learning,factual,1,1,1.0,1.0,1.0
+"What is overfitting, according to the text?",machine_learning,factual,0,1,0.5,0.6309,1.0
+What resources does a computer system process own?,operating_systems,factual,1,1,1.0,1.0,1.0
+What happens to a process in the 'running' state if it needs to wait for a resource?,operating_systems,factual,0,1,0.5,0.6309,1.0
+What is the primary purpose of using semaphores in a real-world system?,operating_systems,inferential,1,1,1.0,1.0,1.0
+Can following the rules of requesting and releasing resources prevent multi-resource deadlock?,operating_systems,inferential,1,1,1.0,1.0,1.0
+What is a characteristic of fixed-size blocks allocation?,operating_systems,factual,0,1,0.2,0.3869,1.0
+Which operating system has the least number of system calls?,operating_systems,factual,0,1,0.3333,0.5,1.0
+What can be gained by using data from a registry's RDAP and WHOIS services?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What is the relationship between a database and its associated applications?,database_systems,inferential,1,1,1.0,1.0,1.0
+What is the name of the IBM operating system mentioned in the text as an example of a single address space operating system?,operating_systems,factual,1,1,1.0,1.0,1.0
+What was the outcome of the competition between OSI and TCP/IP in the late 1980s and early 1990s?,computer_networks,factual,1,1,1.0,1.0,1.0
+What was the design principle of the network?,computer_networks,factual,1,1,1.0,1.0,1.0
+What was the original name of a router before it was changed?,computer_networks,factual,1,1,1.0,1.0,1.0
+How did the adoption of TCP/IP in the US Department of Defense impact other countries?,computer_networks,inferential,1,1,1.0,1.0,1.0
+What was the main reason IPv6 was developed?,computer_networks,inferential,0,1,0.5,0.6309,1.0
+What are the two principal namespaces maintained by the Internet?,computer_networks,factual,1,1,1.0,0.8772,1.0
+What kind of switches are commonly known as layer-3 switches or multilayer switches?,computer_networks,factual,1,1,1.0,1.0,1.0
+Where does an Ethernet switch operate in the OSI model?,computer_networks,factual,1,1,1.0,1.0,1.0
+What layer of the OSI model does Ethernet provide services up to?,computer_networks,factual,0,0,0.1667,0.3562,1.0
+Who released a paper on BSD Packet Filter (BPF) in 1992?,computer_networks,factual,1,1,1.0,1.0,1.0
+How do network administrators use zones to enforce policies?,computer_networks,inferential,0,0,0.1111,0.301,1.0
+Who proposed database normalization as part of his relational model?,database_systems,factual,0,1,0.5,0.6309,1.0
+What would need to be set to null in order to record a newly hired faculty member who has not yet been assigned to teach any courses?,database_systems,factual,1,1,1.0,1.0,1.0
+What is the relationship between achieving a higher level of database normalization and satisfying previous levels?,database_systems,inferential,0,0,0.0,0.0,0.0
+What is the primary purpose of using indexes in a database table?,database_systems,factual,1,1,1.0,0.9197,1.0
+What are examples of nouns in the context of the entity–relationship model?,database_systems,factual,1,1,1.0,1.0,1.0
+Why did Strozzi suggest renaming the NoSQL movement to NoREL?,database_systems,inferential,1,1,1.0,1.0,1.0
+What is a unique key in a document-oriented database used for?,database_systems,factual,1,1,1.0,1.0,1.0
+What is the name of the benchmark most commonly used for scalability comparisons?,database_systems,factual,1,1,1.0,1.0,1.0
+Why is it beneficial to combine a set of related operations into a unit?,database_systems,inferential,1,1,1.0,1.0,1.0
+What happens to a database in case of a failure?,database_systems,factual,1,1,1.0,1.0,1.0
+What is the basis for plan selection in cost-based query optimizers?,database_systems,factual,1,1,1.0,1.0,1.0
+What type of queries can cause difficulties in selectivity estimation?,database_systems,inferential,0,1,0.3333,0.5,1.0
+Who introduced the Sigmoid Belief Net?,machine_learning,factual,1,1,1.0,1.0,1.0
+What is typically required for a network to be called a deep neural network?,machine_learning,factual,1,1,1.0,0.8772,1.0
+What is the primary difference between processes and threads in the context of user-level scheduling?,operating_systems,factual,1,1,1.0,1.0,1.0
+What is the purpose of the physical file system layer?,operating_systems,factual,1,1,1.0,1.0,1.0
+What is the file system used in the Windows NT family of operating systems?,operating_systems,factual,1,1,1.0,1.0,1.0
+What happens when the allocation unit size is set too small compared to the files stored?,operating_systems,factual,1,1,1.0,0.8772,1.0
+Can atomic operations be ensured on uniprocessor systems?,operating_systems,factual,1,1,1.0,1.0,1.0
