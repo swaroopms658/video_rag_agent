@@ -54,20 +54,36 @@ Respond in this exact JSON (nothing else):
 {{"answerable": true/false, "correct": true/false, "reason": "one sentence"}}"""
 
 
-def groq_generate(prompt, api_key, model="llama-3.1-8b-instant", max_tokens=200):
+def _parse_retry_after(text: str) -> float:
+    """Extract wait seconds from Groq 429 message, e.g. 'try again in 240ms' or '1.5s'."""
+    m = re.search(r"try again in ([\d.]+)(m?s)", text, re.IGNORECASE)
+    if m:
+        val = float(m.group(1))
+        return val / 1000.0 if m.group(2).lower() == "ms" else val
+    return 5.0
+
+
+def groq_generate(prompt, api_key, model="llama-3.1-8b-instant", max_tokens=200,
+                  max_retries=8):
     import json as _json
     import requests
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     data = {"model": model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": max_tokens, "temperature": 0.1}
-    resp = requests.post("https://api.groq.com/openai/v1/chat/completions",
-                         headers=headers,
-                         data=_json.dumps(data, ensure_ascii=False).encode("utf-8"),
-                         timeout=30)
-    if resp.status_code == 200:
-        return resp.json()["choices"][0]["message"]["content"]
-    raise RuntimeError(f"Groq error {resp.status_code}: {resp.text}")
+    payload = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+    for attempt in range(max_retries):
+        resp = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                             headers=headers, data=payload, timeout=30)
+        if resp.status_code == 200:
+            return resp.json()["choices"][0]["message"]["content"]
+        if resp.status_code == 429:
+            wait = _parse_retry_after(resp.text) + 0.5 * (attempt + 1)
+            print(f"  [rate limit] sleeping {wait:.1f}s (attempt {attempt+1}/{max_retries})")
+            time.sleep(wait)
+            continue
+        raise RuntimeError(f"Groq error {resp.status_code}: {resp.text}")
+    raise RuntimeError(f"Groq rate limit: exceeded {max_retries} retries")
 
 
 def parse_verify_response(raw: str) -> dict:
@@ -153,7 +169,7 @@ def generate_candidates(api_key: str, max_chunks: int = 50, n_per_chunk: int = 3
             if os.path.exists(tf):
                 out = os.path.join(CANDIDATES_DIR, f"{domain_name}_expanded.jsonl")
                 draft_domain(tf, domain_name, out, api_key,
-                             n_per_chunk=n_per_chunk, max_chunks=max_chunks, delay=1.5)
+                             n_per_chunk=n_per_chunk, max_chunks=max_chunks, delay=3.0)
                 break
 
     for domain_name in config.get("domains", {}):
@@ -171,7 +187,7 @@ def generate_candidates(api_key: str, max_chunks: int = 50, n_per_chunk: int = 3
 
 def verify_candidates(api_key: str, qa_path: str = QA_PATH,
                       candidates_dir: str = CANDIDATES_DIR,
-                      delay: float = 1.0) -> list[dict]:
+                      delay: float = 12.0) -> list[dict]:
     """Auto-verify all unverified candidates. Returns list of new verified items."""
     existing_items, existing_questions = load_existing_qa(qa_path)
     print(f"Existing qa.jsonl: {len(existing_items)} items")
@@ -272,6 +288,8 @@ def main():
     parser.add_argument("--max-chunks", type=int, default=50)
     parser.add_argument("--n-per-chunk", type=int, default=3)
     parser.add_argument("--target", type=int, default=TARGET_ITEMS)
+    parser.add_argument("--verify-delay", type=float, default=12.0,
+                        help="Seconds between verify API calls (default: 12 = safe under 6000 TPM)")
     parser.add_argument("--qa", default=QA_PATH)
     parser.add_argument("--splits", default=SPLITS_PATH)
     args = parser.parse_args()
@@ -287,7 +305,7 @@ def main():
 
     if not args.gen_only:
         print("\n=== Stage 2: Verifying candidates ===")
-        new_items = verify_candidates(api_key, qa_path=args.qa)
+        new_items = verify_candidates(api_key, qa_path=args.qa, delay=args.verify_delay)
 
         if not new_items:
             print("No new items verified.")

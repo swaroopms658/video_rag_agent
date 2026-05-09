@@ -71,7 +71,17 @@ Respond in this EXACT JSON format (a JSON array, nothing else):
 ]"""
 
 
-def groq_generate(prompt, api_key, model="llama-3.1-8b-instant", max_tokens=600):
+def _parse_retry_after(text: str) -> float:
+    """Extract wait seconds from Groq 429 message, e.g. 'try again in 240ms' or '1.5s'."""
+    m = re.search(r"try again in ([\d.]+)(m?s)", text, re.IGNORECASE)
+    if m:
+        val = float(m.group(1))
+        return val / 1000.0 if m.group(2).lower() == "ms" else val
+    return 5.0
+
+
+def groq_generate(prompt, api_key, model="llama-3.1-8b-instant", max_tokens=600,
+                  max_retries=6):
     import json as _json
     import requests
     headers = {
@@ -84,15 +94,23 @@ def groq_generate(prompt, api_key, model="llama-3.1-8b-instant", max_tokens=600)
         "max_tokens": max_tokens,
         "temperature": 0.4,
     }
-    resp = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers=headers,
-        data=_json.dumps(data, ensure_ascii=False).encode("utf-8"),
-        timeout=30,
-    )
-    if resp.status_code == 200:
-        return resp.json()["choices"][0]["message"]["content"]
-    raise RuntimeError(f"Groq API error {resp.status_code}: {resp.text}")
+    payload = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+    for attempt in range(max_retries):
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            data=payload,
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            return resp.json()["choices"][0]["message"]["content"]
+        if resp.status_code == 429:
+            wait = _parse_retry_after(resp.text) + 0.5 * (attempt + 1)
+            print(f"  [rate limit] sleeping {wait:.1f}s (attempt {attempt+1}/{max_retries})")
+            time.sleep(wait)
+            continue
+        raise RuntimeError(f"Groq API error {resp.status_code}: {resp.text}")
+    raise RuntimeError(f"Groq rate limit: exceeded {max_retries} retries")
 
 
 def chunk_text(text, size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):

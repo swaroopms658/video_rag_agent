@@ -245,6 +245,7 @@ def build_triples(
                             "query": query,
                             "positive": chunk,
                             "negative": neg,
+                            "source": tf.stem,
                         }
 
                         # Optionally synthesise memory context
