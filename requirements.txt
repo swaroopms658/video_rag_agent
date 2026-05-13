@@ -1,4 +1,5 @@
 whisper
+faster-whisper
 sentence-transformers
 scikit-learn
 torch

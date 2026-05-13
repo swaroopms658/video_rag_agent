@@ -161,7 +161,7 @@ class AgenticRAG:
         _t("thought:cache_check — selecting tool: answer cache lookup")
         cached = self.cache.lookup(query, contexts)
         if cached:
-            _t("observation:cache_hit — returning cached answer (Objective 6: cost-aware caching)")
+            _t("observation:cache_hit — returning cached answer (Step 6: cost-aware caching)")
             self.last_response_meta = {
                 "cache_hit": True, "estimated_llm_calls_saved": 1,
                 "low_confidence": False,

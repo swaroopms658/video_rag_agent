@@ -31,14 +31,22 @@ inject_global_css()
 
 
 def _obj_card(num: str, icon: str, title: str, steps: list[str], stat_html: str, bg: str,
-              anim_delay: str = "") -> str:
+              anim_delay: str = "", src_paths: str = "") -> str:
     steps_html = "".join(
-        f"<div style='margin-bottom:0.25rem;color:#44403C'><b>Step {i+1} —</b> {s}</div>"
-        for i, s in enumerate(steps)
+        f"<div style='margin-bottom:0.25rem;color:#44403C'>"
+        f"<span style='color:#F97316;font-weight:700'>•</span> {s}</div>"
+        for s in steps
     )
     anim_style = (
         f"animation: objective-pulse 1.1s ease-in-out 2; animation-delay: {anim_delay};"
         if anim_delay else ""
+    )
+    src_html = (
+        f"<div style='margin-top:0.5rem;font-size:0.72rem;color:#78716C;"
+        f"border-top:1px dashed #FED7AA;padding-top:0.35rem;line-height:1.5;"
+        f"font-family:ui-monospace,SFMono-Regular,Menlo,monospace'>"
+        f"<span style='color:#EA580C;font-weight:600'>src:</span> {src_paths}</div>"
+        if src_paths else ""
     )
     return f"""
     <div style="border:1.5px solid #FED7AA;border-radius:10px;
@@ -46,7 +54,7 @@ def _obj_card(num: str, icon: str, title: str, steps: list[str], stat_html: str,
                 box-shadow:0 1px 6px rgba(249,115,22,0.08);{anim_style}">
       <div style="font-size:0.68rem;font-weight:700;color:#F97316;margin-bottom:0.3rem;
                   letter-spacing:0.08em;text-transform:uppercase">
-        OBJECTIVE {num}
+        STEP {num}
       </div>
       <div style="font-weight:700;font-size:0.97rem;margin-bottom:0.55rem;color:#1C1917">
         {icon} {title}
@@ -54,25 +62,48 @@ def _obj_card(num: str, icon: str, title: str, steps: list[str], stat_html: str,
       <div style="font-size:0.84rem;line-height:1.7">{steps_html}</div>
       <div style="margin-top:0.55rem;font-size:0.84rem;border-top:1px solid #FED7AA;
                   padding-top:0.45rem;color:#1C1917">{stat_html}</div>
+      {src_html}
     </div>"""
 
 
+_ARROW_HTML = """
+<div style="display:flex;align-items:center;justify-content:center;height:100%;
+            font-size:1.8rem;color:#F97316;font-weight:700;line-height:1;
+            padding-top:1.2rem">→</div>
+"""
+
+_DOWN_HINT_HTML = """
+<div style="text-align:center;margin:0.4rem 0 0.6rem 0;color:#F97316;
+            font-size:0.85rem;font-weight:600;letter-spacing:0.05em">
+    ↓ &nbsp; then &nbsp; ↓
+</div>
+"""
+
+
 def _render_objectives_trace(trace: dict, animate: bool = False):
-    """Six-column (2×3) card grid showing all objectives covered in this retrieval."""
+    """2×3 card grid showing all six pipeline steps exercised by this retrieval.
+
+    Cards are laid out in reading order (STEP 1 → 2 → 3 on row 1, then 4 → 5 → 6
+    on row 2). Animation pulses also flow in that order so the directional arrows
+    between cards match the temporal flow the examiner sees.
+    """
     cache_hits = trace.get("cache_hits", 0)
     cache_new  = trace.get("cache_new", 0)
     mem_entries = trace.get("mem_entries", 0)
     boosted    = trace.get("boosted_ids", [])
     n_feedback = trace.get("n_feedback", 0)
 
-    # Pipeline execution order: cache-check → corpus-fetch → ReAct → memory → perf → cache-write
-    # delays: (obj1, obj2, obj3, obj4, obj5, obj6)
-    D = ["0s", "0.55s", "1.1s", "1.65s", "2.2s", "2.75s"] if animate else [""] * 6
+    # Delays in reading order: D[i] is the delay for STEP i+1
+    D = ["0s", "0.45s", "0.9s", "1.35s", "1.8s", "2.25s"] if animate else [""] * 6
 
-    st.markdown("##### How all six objectives are covered in this retrieval")
+    st.markdown("##### How the six pipeline steps were exercised by this retrieval")
 
-    # ── Row 1 ──────────────────────────────────────────────────────────────────
-    r1c1, r1c2, r1c3 = st.columns(3, gap="small")
+    # ── Row 1: STEP 1 → STEP 2 → STEP 3 ─────────────────────────────────────────
+    r1c1, r1a1, r1c2, r1a2, r1c3 = st.columns([6, 1, 6, 1, 6], gap="small")
+    with r1a1:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
+    with r1a2:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
 
     with r1c1:
         cache_stat = (
@@ -89,62 +120,13 @@ def _render_objectives_trace(trace: dict, animate: bool = False):
              "Query embedding computed once and reused",
              "Chunk embeddings looked up in in-memory cache"],
             cache_stat,
-            "#FFF7ED", D[0]
+            "#FFF7ED", D[0],
+            src_paths="src/itma/integration.py · src/agent.py · src/demo_utils.py",
         ), unsafe_allow_html=True)
 
     with r1c2:
-        adapt_status = "🟢 Adapting" if mem_entries > 0 else "🟡 Cold start"
-        boost_stat = (
-            f'<span style="color:#EA580C"><b>{len(boosted)}</b> chunk(s) ID-boosted</span>'
-            if boosted else '<span style="opacity:0.6">No boosts yet — mark helpful chunks below</span>'
-        )
         st.markdown(_obj_card(
-            "2", "🧠", "Smart Memory",
-            ["Memory bank attended → weighted summary m",
-             "Frozen scoring head scores each candidate",
-             "ID-boost re-ranks chunks from past helpful interactions",
-             "Counterfactual reweighting updates weights post-feedback"],
-            f'{adapt_status} &nbsp;·&nbsp; bank: <b>{mem_entries}</b> entries &nbsp;·&nbsp; '
-            f'N=<b>{n_feedback}</b><br>{boost_stat}',
-            "#FFEDD5", D[3]
-        ), unsafe_allow_html=True)
-
-    with r1c3:
-        if n_feedback >= 50:
-            perf_stat = '<span style="color:#EA580C">✅ N=50 — ITMA H@5 0.932 &gt; CFRAG-lite 0.915 (no retraining)</span>'
-        elif n_feedback >= 10:
-            perf_stat = '<span style="color:#EA580C">✅ N≥10 — ITMA matches Dense-MiniLM baseline (H@5 0.848)</span>'
-        else:
-            perf_stat = f'Cold-start regime · ITMA recovers to baseline by N=10 · target N=50'
-        st.markdown(_obj_card(
-            "3", "📊", "Performance Evaluation",
-            ["Retrieval quality measured via Hit@5, MRR@10, nDCG@10",
-             "Cold-start curve tracked across N=0→50 feedback examples",
-             "Results compared against 5 baselines on 59-item test split"],
-            f'Progress: <b>N={n_feedback}</b> / 50<br>{perf_stat}',
-            "#FFF7ED", D[4]
-        ), unsafe_allow_html=True)
-
-    st.markdown("<div style='margin-top:0.5rem'></div>", unsafe_allow_html=True)
-
-    # ── Row 2 ──────────────────────────────────────────────────────────────────
-    r2c1, r2c2, r2c3 = st.columns(3, gap="small")
-
-    with r2c1:
-        st.markdown(_obj_card(
-            "4", "🤖", "Agentic Reasoning Framework",
-            ["Observe: FAISS retrieves top-20 candidate chunks",
-             "Reason: scoring head evaluates (query, chunk, memory)",
-             "Act: re-ranked top-K returned as response",
-             "Reflect: feedback updates memory → next query benefits"],
-            '🔄 ReAct loop completed &nbsp;·&nbsp; '
-            f'20 candidates → <b>5</b> returned after reasoning',
-            "#FFEDD5", D[2]
-        ), unsafe_allow_html=True)
-
-    with r2c2:
-        st.markdown(_obj_card(
-            "5", "🎙️", "Optimise ASR for Edge Computing",
+            "2", "🎙️", "Optimise ASR for Edge Computing",
             ["faster-whisper INT8 quantization: ~4× less memory vs FP32",
              "Built-in VAD filter skips silent segments (no hallucinations)",
              "Transcripts chunked → embedded with all-MiniLM-L6-v2",
@@ -152,7 +134,66 @@ def _render_objectives_trace(trace: dict, animate: bool = False):
             '✅ Corpus built from ASR output &nbsp;·&nbsp; '
             '<b>103 chunks</b> indexed &nbsp;·&nbsp; 5 domains<br>'
             '<span style="opacity:0.7">This query searches the edge-transcribed corpus</span>',
-            "#FFF7ED", D[1]
+            "#FFEDD5", D[1],
+            src_paths="src/transcribe.py · src/build_vectorstore.py · scripts/build_domain_stores.py",
+        ), unsafe_allow_html=True)
+
+    with r1c3:
+        st.markdown(_obj_card(
+            "3", "🤖", "Agentic Reasoning Framework",
+            ["Observe: FAISS retrieves top-20 candidate chunks",
+             "Reason: scoring head evaluates (query, chunk, memory)",
+             "Act: re-ranked top-K returned as response",
+             "Reflect: feedback updates memory → next query benefits"],
+            '🔄 ReAct loop completed &nbsp;·&nbsp; '
+            f'20 candidates → <b>5</b> returned after reasoning',
+            "#FFF7ED", D[2],
+            src_paths="src/itma/integration.py:_rank() · src/itma/scoring_head.py · src/rag_chain.py",
+        ), unsafe_allow_html=True)
+
+    # Connector hint between row 1 (steps 1–3) and row 2 (steps 4–6)
+    st.markdown(_DOWN_HINT_HTML, unsafe_allow_html=True)
+
+    # ── Row 2: STEP 4 → STEP 5 → STEP 6 ─────────────────────────────────────────
+    r2c1, r2a1, r2c2, r2a2, r2c3 = st.columns([6, 1, 6, 1, 6], gap="small")
+    with r2a1:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
+    with r2a2:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
+
+    with r2c1:
+        adapt_status = "🟢 Adapting" if mem_entries > 0 else "🟡 Cold start"
+        boost_stat = (
+            f'<span style="color:#EA580C"><b>{len(boosted)}</b> chunk(s) ID-boosted</span>'
+            if boosted else '<span style="opacity:0.6">No boosts yet — mark helpful chunks below</span>'
+        )
+        st.markdown(_obj_card(
+            "4", "🧠", "Smart Memory",
+            ["Memory bank attended → weighted summary m",
+             "Frozen scoring head scores each candidate",
+             "ID-boost re-ranks chunks from past helpful interactions",
+             "Counterfactual reweighting updates weights post-feedback"],
+            f'{adapt_status} &nbsp;·&nbsp; bank: <b>{mem_entries}</b> entries &nbsp;·&nbsp; '
+            f'N=<b>{n_feedback}</b><br>{boost_stat}',
+            "#FFEDD5", D[3],
+            src_paths="src/itma/memory_bank.py · src/itma/integration.py:record_feedback() · src/itma/scoring_head.py",
+        ), unsafe_allow_html=True)
+
+    with r2c2:
+        if n_feedback >= 50:
+            perf_stat = '<span style="color:#EA580C">✅ N=50 — ITMA H@5 0.932 &gt; CFRAG-lite 0.915 (no retraining)</span>'
+        elif n_feedback >= 10:
+            perf_stat = '<span style="color:#EA580C">✅ N≥10 — ITMA matches Dense-MiniLM baseline (H@5 0.848)</span>'
+        else:
+            perf_stat = f'Cold-start regime · ITMA recovers to baseline by N=10 · target N=50'
+        st.markdown(_obj_card(
+            "5", "📊", "Performance Evaluation",
+            ["Retrieval quality measured via Hit@5, MRR@10, nDCG@10",
+             "Cold-start curve tracked across N=0→50 feedback examples",
+             "Results compared against 5 baselines on 59-item test split"],
+            f'Progress: <b>N={n_feedback}</b> / 50<br>{perf_stat}',
+            "#FFF7ED", D[4],
+            src_paths="scripts/cold_start_eval.py · scripts/sensitivity_eval.py · scripts/eval_retrieval_only.py · analysis/make_plots.py",
         ), unsafe_allow_html=True)
 
     with r2c3:
@@ -167,7 +208,8 @@ def _render_objectives_trace(trace: dict, animate: bool = False):
             f'Embedding cache: <b>{cache_hits}/{cache_total}</b> hits this query '
             f'({saved_pct}% reuse rate)<br>'
             f'<span style="color:#EA580C">Session cache active — FAISS + warm retriever pre-loaded</span>',
-            "#FFEDD5", D[5]
+            "#FFEDD5", D[5],
+            src_paths="src/answer_cache.py · src/rag_chain.py · scripts/build_domain_stores.py · src/demo_utils.py",
         ), unsafe_allow_html=True)
 
 

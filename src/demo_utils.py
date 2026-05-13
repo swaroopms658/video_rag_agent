@@ -147,7 +147,13 @@ def get_cold_retriever():
 
 @st.cache_resource(show_spinner="Pre-warming ITMA with 50 feedback examples (one-time, ~30 s)…")
 def get_warm_retriever():
-    """ITMA pre-warmed with 50 oracle-feedback signals from the train split.
+    """ITMA pre-warmed with 50 oracle-feedback signals.
+
+    Composition: 1 feedback on the simulation's DEMO_QUERY (so the side-by-side
+    cold-vs-warm panel shows a clear before-vs-after for that specific query)
+    + 49 sampled feedbacks from the train split (seed=0). This mirrors a
+    realistic deployment where the demo question has been asked once before
+    and the gold chunk was marked helpful.
 
     Uses gold_context_ids as oracle (same protocol as cold_start_eval.py:147-155).
     Cached for the entire Streamlit session after first load.
@@ -159,13 +165,25 @@ def get_warm_retriever():
         memory_path=None,
     )
     embedder = get_embedder()
+
+    # 1. Feed the DEMO_QUERY's gold chunk first — anchors the simulation's
+    #    before/after story to a specific query the audience can verify.
+    demo_gold = DEMO_QUERY.get("gold_context_ids") or []
+    r.retrieve_with_ids(DEMO_QUERY["question"], embedder, top_k=10)
+    r.record_feedback(helpful_chunk_ids=demo_gold, reward=1.0)
+    demo_gold_set = set(demo_gold)
+
+    # 2. Fill the remaining 49 slots with sampled train-set feedbacks.
     train_items = _load_split("train")
     rng = random.Random(0)
     rng.shuffle(train_items)
-    n = 0
+    n = 1
     for item in train_items:
         gold = item.get("gold_context_ids") or []
         if not gold:
+            continue
+        # Skip duplicates of the demo gold to avoid a no-op record_feedback
+        if any(g in demo_gold_set for g in gold):
             continue
         r.retrieve_with_ids(item["question"], embedder, top_k=10)
         r.record_feedback(helpful_chunk_ids=gold, reward=1.0)

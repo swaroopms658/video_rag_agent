@@ -27,7 +27,7 @@ import json
 import os
 import random
 
-from src.eval_utils import hit_at_k, mrr, ndcg_at_k
+from src.eval_utils import hit_at_k, mrr, ndcg_at_k, recall_at_k
 
 EVAL_CHECKPOINTS = [0, 5, 10, 20, 30, 50]
 
@@ -132,9 +132,11 @@ def run_cold_start(
         results = retriever.retrieve_with_ids(q, embed_model, top_k=10)
         retrieved_ids = [r[2] for r in results]
         return {
+            "hit_at_1": hit_at_k(retrieved_ids, gold_ids, k=1),
             "hit_at_5": hit_at_k(retrieved_ids, gold_ids, k=5),
             "mrr_score": mrr(retrieved_ids, gold_ids),
             "ndcg_at_10": ndcg_at_k(retrieved_ids, gold_ids, k=10),
+            "recall_at_10": recall_at_k(retrieved_ids, gold_ids, k=10),
         }
 
     # Evaluate at N=0 before any feedback
@@ -226,7 +228,8 @@ def main():
             print(f"  -> {len(rows)} checkpoint rows")
 
     os.makedirs(os.path.dirname(args.out) if os.path.dirname(args.out) else ".", exist_ok=True)
-    fieldnames = ["system", "n_feedback", "seed", "hit_at_5", "mrr_score", "ndcg_at_10"]
+    fieldnames = ["system", "n_feedback", "seed",
+                  "hit_at_1", "hit_at_5", "mrr_score", "ndcg_at_10", "recall_at_10"]
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()

@@ -33,7 +33,10 @@ import torch.nn.functional as F
 
 D = 384   # MiniLM embedding dimension
 P = 128   # projection dimension
-MLP_INPUT = 4 * D + P   # 1664: [q, c, m, q⊙c] (each D) + [q_proj⊙m_proj] (P)
+# v5: added c⊙m so the MLP has a direct candidate–memory alignment feature.
+# Without it the gate can open all it wants but the gated score has no
+# dependence on whether the candidate matches what's in memory.
+MLP_INPUT = 5 * D + P   # 2048: [q, c, m, q⊙c, c⊙m] (each D) + [q_proj⊙m_proj] (P)
 
 BETA_DENSE = 0.7   # weight on cos-sim component
 BETA_MEM = 0.3     # weight on learned-head component
@@ -42,13 +45,17 @@ BETA_MEM = 0.3     # weight on learned-head component
 class ITMAHead(nn.Module):
     """Pretrained scoring head. Load from checkpoint and call .eval() at deployment."""
 
-    def __init__(self, emb_dim: int = D, proj_dim: int = P):
+    def __init__(self, emb_dim: int = D, proj_dim: int = P, legacy: bool = False):
+        """
+        legacy=False (default, v5+): MLP input includes c*m feature → 5D+P=2048.
+        legacy=True  (v3/v4 ckpts):  MLP input excludes c*m         → 4D+P=1664.
+        FrozenScoringHead auto-detects from checkpoint shape.
+        """
         super().__init__()
         self.emb_dim = emb_dim
         self.proj_dim = proj_dim
-        mlp_in = 4 * emb_dim + 2 * proj_dim
-
-        mlp_in = 4 * emb_dim + proj_dim   # 1664
+        self.legacy = legacy
+        mlp_in = (4 if legacy else 5) * emb_dim + proj_dim
 
         self.proj_q = nn.Linear(emb_dim, proj_dim, bias=False)
         self.proj_m = nn.Linear(emb_dim, proj_dim, bias=False)
@@ -77,14 +84,11 @@ class ITMAHead(nn.Module):
         q_proj = self.proj_q(q)          # (B, P)
         m_proj = self.proj_m(m)          # (B, P)
 
-        feats = torch.cat([
-            q,                           # (B, D)
-            c,                           # (B, D)
-            m,                           # (B, D)
-            q * c,                       # (B, D) element-wise
-            q_proj * m_proj,             # (B, P) element-wise
-            # (q_proj still has grad during pretrain, but not at deploy since frozen)
-        ], dim=-1)                       # (B, 4D+P=1664)
+        parts = [q, c, m, q * c]
+        if not self.legacy:
+            parts.append(c * m)          # v5: candidate-memory alignment
+        parts.append(q_proj * m_proj)
+        feats = torch.cat(parts, dim=-1)
 
         s = torch.sigmoid(self.mlp(feats).squeeze(-1))          # (B,)
         gate_logit = self.gate(torch.cat([q, m], dim=-1))       # (B, 1)
@@ -109,9 +113,18 @@ class FrozenScoringHead:
 
     def __init__(self, checkpoint_path: Optional[str] = None, device: str = "cpu"):
         self.device = torch.device(device)
-        self.model = ITMAHead().to(self.device)
+        legacy = False
+        state = None
         if checkpoint_path and os.path.exists(checkpoint_path):
             state = torch.load(checkpoint_path, map_location=self.device)
+            # Auto-detect arch from MLP input dim:
+            #   1664 = 4D + P  → legacy (v3/v4, no c*m)
+            #   2048 = 5D + P  → v5+   (with c*m)
+            w = state.get("mlp.0.weight")
+            if w is not None and w.shape[1] == 4 * D + P:
+                legacy = True
+        self.model = ITMAHead(legacy=legacy).to(self.device)
+        if state is not None:
             self.model.load_state_dict(state)
         self.model.eval()
         for p in self.model.parameters():

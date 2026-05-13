@@ -1,13 +1,12 @@
 """Page 1 — ITMA Simulation walkthrough.
 
-Seven-step narrative driven by st.session_state["sim_step"]:
-  0. Intro — paper title + abstract
-  1. Architecture — how ITMA works (text sketch)
-  2. Demo query — the query we will run twice
-  3. Side-by-side retrieval — N=0 vs N=50
-  4. Cold-start curve — Figure 1 rendered inline
-  5. Table 1 — static test-set retrieval results
-  6. Closing — key claim summary
+Six-step narrative driven by st.session_state["sim_step"]:
+  0. Architecture — how ITMA works (text sketch)
+  1. Demo query — the query we will run twice
+  2. Side-by-side retrieval — N=0 vs N=50
+  3. Cold-start curve — Figure 1 rendered inline
+  4. Table 1 — static test-set retrieval results
+  5. Closing — key claim summary
 """
 
 import streamlit as st
@@ -28,6 +27,34 @@ from src.demo_utils import (
 )
 
 
+_ARROW_HTML = """
+<div style="display:flex;align-items:center;justify-content:center;height:100%;
+            font-size:1.8rem;color:#F97316;font-weight:700;line-height:1;
+            padding-top:1.2rem">→</div>
+"""
+
+_DOWN_HINT_HTML = """
+<div style="text-align:center;margin:0.4rem 0 0.6rem 0;color:#F97316;
+            font-size:0.85rem;font-weight:600;letter-spacing:0.05em">
+    ↓ &nbsp; then &nbsp; ↓
+</div>
+"""
+
+
+def _flow_arrow_block(label: str = "after 50 feedback signals") -> str:
+    """Vertical arrow + caption used between two side-by-side panels (e.g. cold → warm)."""
+    return f"""
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                height:100%;padding-top:2.5rem">
+        <div style="font-size:2.4rem;color:{ORANGE};font-weight:800;line-height:1">→</div>
+        <div style="font-size:0.75rem;color:{ORANGE_DARK};font-weight:600;
+                    text-align:center;margin-top:0.35rem;max-width:80px">
+            {label}
+        </div>
+    </div>
+    """
+
+
 st.set_page_config(
     page_title="ITMA — Simulation",
     page_icon="📖",
@@ -36,7 +63,7 @@ st.set_page_config(
 
 inject_global_css()
 
-N_STEPS = 7
+N_STEPS = 6
 
 # Pre-load both retrievers at page open — the spinner fires once here,
 # so step 4 (side-by-side) renders instantly when the user navigates to it.
@@ -96,39 +123,8 @@ st.divider()
 
 # ── step content ─────────────────────────────────────────────────────────────
 
-# ── Step 0: Intro ────────────────────────────────────────────────────────────
+# ── Step 0: Architecture ─────────────────────────────────────────────────────
 if step == 0:
-    st.title("Inference-Time Memory Adaptation for Cold-Start Educational RAG")
-    st.subheader("ITMA")
-    st.markdown(
-        """
-        **The problem:** Deploying a retrieval-augmented system on a new lecture corpus from
-        scratch — zero feedback examples, no user history, pure cold start.
-
-        **The gap in prior art:** CFRAG, R3, RankRAG, and DynamicRAG all require
-        deployment-time retraining or an LLM in the adaptation loop.
-
-        **ITMA's answer:** Pretrain a scoring head *once* on held-out domains, then freeze
-        it forever. All per-deployment adaptation flows through an **online memory bank**
-        updated with counterfactual-reweighted signals after each query — no gradient steps,
-        no API calls, no retraining.
-
-        > *Same retriever. No retraining. Adapts as it serves.*
-        """
-    )
-
-    st.info(
-        "**Benchmark:** LectureRAG-75 — 291 QA pairs · 5 domains · "
-        "174 train / 58 dev / **59 held-out test** items",
-        icon="📊",
-    )
-    st.caption(
-        "💡 Retrieval assets are pre-loading in the background — "
-        "steps 4 and 5 will render instantly once ready."
-    )
-
-# ── Step 1: Architecture ─────────────────────────────────────────────────────
-elif step == 1:
     st.title("How ITMA works")
 
     col_arch, col_legend = st.columns([3, 2], gap="large")
@@ -197,7 +193,7 @@ elif step == 1:
         )
 
     st.divider()
-    st.markdown("##### How all six project objectives are addressed by ITMA")
+    st.markdown("##### How the six ITMA pipeline steps work together")
 
     def _sim_card(num, icon, title, items, note, bg="#FFF7ED"):
         li = "".join(f"<li style='color:#44403C'>{s}</li>" for s in items)
@@ -206,61 +202,69 @@ elif step == 1:
                     padding:1rem;background:{bg};color:#1C1917;height:100%;
                     box-shadow:0 1px 6px rgba(249,115,22,0.07)">
           <div style="font-size:0.68rem;font-weight:700;color:#F97316;margin-bottom:0.3rem;
-                      letter-spacing:0.08em;text-transform:uppercase">OBJECTIVE {num}</div>
+                      letter-spacing:0.08em;text-transform:uppercase">STEP {num}</div>
           <div style="font-weight:700;font-size:0.97rem;margin-bottom:0.5rem;color:#1C1917">{icon} {title}</div>
           <ol style="margin:0 0 0.5rem 0;padding-left:1.15rem;font-size:0.86rem;line-height:1.75">{li}</ol>
           <div style="font-size:0.8rem;color:#78716C;border-top:1px solid #FED7AA;
                       padding-top:0.4rem">{note}</div>
         </div>"""
 
-    r1a, r1b, r1c = st.columns(3, gap="small")
+    r1a, r1arrA, r1b, r1arrB, r1c = st.columns([6, 1, 6, 1, 6], gap="small")
+    with r1arrA:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
+    with r1arrB:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
     with r1a:
         st.markdown(_sim_card("1", "⚡", "Efficient Caching",
             ["FAISS index loaded once from disk, reused every query",
              "Chunk embeddings cached after first encode",
              "Repeated queries served without re-encoding"],
-            "src: ITMARetriever._chunk_emb_cache"), unsafe_allow_html=True)
+            "src: src/itma/integration.py · src/agent.py · src/demo_utils.py"), unsafe_allow_html=True)
     with r1b:
-        st.markdown(_sim_card("2", "🧠", "Smart Memory",
-            ["Memory bank stores helpful (query, chunk) pairs with weights",
-             "At query time: bank is attended → memory summary m",
-             "ID-boost re-ranks chunks matched to similar past queries",
-             "Counterfactual reweighting updates weights from feedback"],
-            "src: MemoryBank, record_feedback()", "#FFEDD5"), unsafe_allow_html=True)
-    with r1c:
-        st.markdown(_sim_card("3", "📊", "Performance Evaluation",
-            ["Hit@5, MRR@10, nDCG@10 measured at N=0,5,10,20,30,50",
-             "Compared against 5 baselines on 59-item held-out test split",
-             "ITMA N=50: H@5 0.932 > CFRAG-lite 0.915 without retraining"],
-            "src: analysis/cold_start.csv, Figure 1"), unsafe_allow_html=True)
-
-    st.markdown("<div style='margin-top:0.5rem'></div>", unsafe_allow_html=True)
-
-    r2a, r2b, r2c = st.columns(3, gap="small")
-    with r2a:
-        st.markdown(_sim_card("4", "🤖", "Agentic Reasoning Framework",
-            ["Observe: FAISS retrieves 20 candidate chunks",
-             "Reason: scoring head evaluates (query, chunk, memory summary)",
-             "Act: re-ranked top-K returned as retrieval response",
-             "Reflect: feedback updates memory → future queries benefit"],
-            "src: ITMARetriever._rank() — full ReAct loop", "#FFEDD5"), unsafe_allow_html=True)
-    with r2b:
-        st.markdown(_sim_card("5", "🎙️", "Optimise ASR for Edge Computing",
+        st.markdown(_sim_card("2", "🎙️", "Optimised ASR for Edge Computing",
             ["faster-whisper INT8 quantization: ~4× less memory than FP32",
              "Built-in VAD filter skips silent segments, cuts hallucinations",
              "Falls back to openai-whisper if faster-whisper unavailable",
              "Transcripts chunked → embedded → 103 FAISS chunks across 5 domains"],
-            "src: src/transcribe.py — INT8 + VAD, CPU-only"), unsafe_allow_html=True)
+            "src: src/transcribe.py · src/build_vectorstore.py · scripts/build_domain_stores.py", "#FFEDD5"), unsafe_allow_html=True)
+    with r1c:
+        st.markdown(_sim_card("3", "🤖", "Agentic Reasoning Framework",
+            ["Observe: FAISS retrieves 20 candidate chunks",
+             "Reason: scoring head evaluates (query, chunk, memory summary)",
+             "Act: re-ranked top-K returned as retrieval response",
+             "Reflect: feedback updates memory → future queries benefit"],
+            "src: src/itma/integration.py:_rank() · src/itma/scoring_head.py · src/rag_chain.py"), unsafe_allow_html=True)
+
+    st.markdown(_DOWN_HINT_HTML, unsafe_allow_html=True)
+
+    r2a, r2arrA, r2b, r2arrB, r2c = st.columns([6, 1, 6, 1, 6], gap="small")
+    with r2arrA:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
+    with r2arrB:
+        st.markdown(_ARROW_HTML, unsafe_allow_html=True)
+    with r2a:
+        st.markdown(_sim_card("4", "🧠", "Smart Memory",
+            ["Memory bank stores helpful (query, chunk) pairs with weights",
+             "At query time: bank is attended → memory summary m",
+             "ID-boost re-ranks chunks matched to similar past queries",
+             "Counterfactual reweighting updates weights from feedback"],
+            "src: src/itma/memory_bank.py · src/itma/integration.py:record_feedback() · src/itma/scoring_head.py", "#FFEDD5"), unsafe_allow_html=True)
+    with r2b:
+        st.markdown(_sim_card("5", "📊", "Performance Evaluation",
+            ["Hit@5, MRR@10, nDCG@10 measured at N=0,5,10,20,30,50",
+             "Compared against 5 baselines on 59-item held-out test split",
+             "ITMA N=50: H@5 0.932 > CFRAG-lite 0.915 without retraining"],
+            "src: scripts/cold_start_eval.py · scripts/sensitivity_eval.py · scripts/eval_retrieval_only.py · analysis/make_plots.py"), unsafe_allow_html=True)
     with r2c:
         st.markdown(_sim_card("6", "💾", "Cost-Aware Caching Logic",
             ["FAISS store checked on disk before rebuild (skip-if-exists)",
              "Warm retriever built once, cached for entire session",
              "Chunk embedding cache avoids redundant encoder calls",
              "Answer cache skips LLM for repeated query+context pairs"],
-            "src: answer_cache.py, build_domain_stores.py", "#FFEDD5"), unsafe_allow_html=True)
+            "src: src/answer_cache.py · src/rag_chain.py · scripts/build_domain_stores.py · src/demo_utils.py", "#FFEDD5"), unsafe_allow_html=True)
 
-# ── Step 2: Demo query ───────────────────────────────────────────────────────
-elif step == 2:
+# ── Step 1: Demo query ───────────────────────────────────────────────────────
+elif step == 1:
     st.title("The demo query")
     st.markdown(
         "We will run the **same query** through ITMA twice — once with an empty memory "
@@ -298,8 +302,8 @@ elif step == 2:
         icon="👁️",
     )
 
-# ── Step 3: Side-by-side retrieval ──────────────────────────────────────────
-elif step == 3:
+# ── Step 2: Side-by-side retrieval ──────────────────────────────────────────
+elif step == 2:
     st.title("Cold start vs. 50 feedback examples — same query")
 
     query = DEMO_QUERY["question"]
@@ -335,9 +339,11 @@ elif step == 3:
                 unsafe_allow_html=True,
             )
 
-    col_cold, col_warm = st.columns(2, gap="large")
+    col_cold, col_arrow, col_warm = st.columns([10, 1, 10], gap="medium")
     with col_cold:
         _render_results(cold_results, "ITMA at N=0 (empty memory bank)")
+    with col_arrow:
+        st.markdown(_flow_arrow_block("after 50 feedback signals"), unsafe_allow_html=True)
     with col_warm:
         _render_results(warm_results, "ITMA at N=50 (50 feedback examples)")
 
@@ -365,8 +371,8 @@ elif step == 3:
             icon="📈",
         )
 
-# ── Step 4: Cold-start curve ─────────────────────────────────────────────────
-elif step == 4:
+# ── Step 3: Cold-start curve ─────────────────────────────────────────────────
+elif step == 3:
     st.title("Figure 1 — Cold-start adaptation curve")
     st.caption(
         "Hit@5 vs. number of feedback examples. Averaged over 5 seeds, "
@@ -395,8 +401,8 @@ elif step == 4:
         """
     )
 
-# ── Step 5: Table 1 ──────────────────────────────────────────────────────────
-elif step == 5:
+# ── Step 4: Table 1 ──────────────────────────────────────────────────────────
+elif step == 4:
     st.title("Table 1 — Static retrieval results")
     st.caption(
         "LectureRAG-75 held-out test split, n=59. ITMA shown at N=0 (cold start) and N=50 (★). "
@@ -423,6 +429,75 @@ elif step == 5:
         .format("{:.3f}")
     )
     st.dataframe(styled, use_container_width=True)
+
+    # ── Metric definitions panel ──────────────────────────────────────────────
+    st.markdown(
+        """
+        <div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:10px;
+                    padding:1rem 1.25rem;margin-top:0.6rem">
+        <div style="font-weight:700;color:#EA580C;margin-bottom:0.45rem;
+                    font-size:0.95rem">📐 What each metric measures</div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.86rem;
+                      line-height:1.6;color:#1C1917">
+          <thead>
+            <tr style="border-bottom:1px solid #FED7AA;color:#78716C;text-align:left">
+              <th style="padding:0.25rem 0.6rem 0.35rem 0">Metric</th>
+              <th style="padding:0.25rem 0.6rem 0.35rem 0">What it asks</th>
+              <th style="padding:0.25rem 0.6rem 0.35rem 0;text-align:center">Math range</th>
+              <th style="padding:0.25rem 0;text-align:center">Good on LectureRAG-75</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;font-weight:600">H@1</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0">Did the gold chunk land at rank&nbsp;1?</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;text-align:center">[0, 1]</td>
+              <td style="padding:0.3rem 0;text-align:center">≥ 0.60 strong, ≥ 0.70 SOTA</td>
+            </tr>
+            <tr style="background:#FFFBF5">
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;font-weight:600">H@5</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0">Is the gold chunk anywhere in the top-5?</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;text-align:center">[0, 1]</td>
+              <td style="padding:0.3rem 0;text-align:center">≥ 0.85 strong, ≥ 0.90 SOTA</td>
+            </tr>
+            <tr>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;font-weight:600">MRR@10</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0">
+                Average of 1/(rank of gold) — rewards getting gold higher.
+                0 if gold is outside the top-10.
+              </td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;text-align:center">[0, 1]</td>
+              <td style="padding:0.3rem 0;text-align:center">≥ 0.65 strong, ≥ 0.80 SOTA</td>
+            </tr>
+            <tr style="background:#FFFBF5">
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;font-weight:600">nDCG@10</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0">
+                Discounted-gain measure of the entire top-10 ordering,
+                normalised to the ideal ordering.
+              </td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;text-align:center">[0, 1]</td>
+              <td style="padding:0.3rem 0;text-align:center">≥ 0.70 strong, ≥ 0.82 SOTA</td>
+            </tr>
+            <tr>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;font-weight:600">R@10</td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0">
+                Fraction of all gold chunks present anywhere in the top-10.
+              </td>
+              <td style="padding:0.3rem 0.6rem 0.3rem 0;text-align:center">[0, 1]</td>
+              <td style="padding:0.3rem 0;text-align:center">≥ 0.90 strong, ≥ 0.95 SOTA</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:0.78rem;color:#78716C;margin-top:0.5rem">
+          All five metrics are bounded by [0, 1] with <b>higher = better</b>.
+          They progress in stringency from H@1 (must be rank&nbsp;1) → H@5 (must be in top-5) →
+          MRR@10 (rank-aware over top-10) → nDCG@10 (full-order-aware over top-10) →
+          R@10 (multi-gold recall).
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown(
         """
@@ -464,8 +539,8 @@ elif step == 5:
         abl_fig = build_ablation_figure(ABLATION_CSV)
         st.pyplot(abl_fig, use_container_width=True)
 
-# ── Step 6: Closing slide ─────────────────────────────────────────────────────
-elif step == 6:
+# ── Step 5: Closing slide ─────────────────────────────────────────────────────
+elif step == 5:
     st.title("Summary")
 
     st.markdown(

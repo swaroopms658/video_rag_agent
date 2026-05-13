@@ -1,0 +1,162 @@
+[
+  {
+    "margin_loss": 0.03509152214974165,
+    "gate_mean": 0.04823991563171148,
+    "score_pos_mean": 0.5658397823572159,
+    "score_neg_mean": 0.48195426166057587,
+    "total_loss": 0.03509152214974165,
+    "stage": "A",
+    "epoch": 1,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.034395020455121994,
+    "gate_mean": 0.04826526343822479,
+    "score_pos_mean": 0.5644811391830444,
+    "score_neg_mean": 0.47933972626924515,
+    "total_loss": 0.034395020455121994,
+    "stage": "A",
+    "epoch": 2,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.035413374193012714,
+    "gate_mean": 0.04823540523648262,
+    "score_pos_mean": 0.5647607892751694,
+    "score_neg_mean": 0.48056283593177795,
+    "total_loss": 0.035413374193012714,
+    "stage": "A",
+    "epoch": 3,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03682278748601675,
+    "gate_mean": 0.04822129104286432,
+    "score_pos_mean": 0.5618083626031876,
+    "score_neg_mean": 0.47961731255054474,
+    "total_loss": 0.03682278748601675,
+    "stage": "A",
+    "epoch": 4,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03424296248704195,
+    "gate_mean": 0.048253429122269154,
+    "score_pos_mean": 0.5629487931728363,
+    "score_neg_mean": 0.4769274666905403,
+    "total_loss": 0.03424296248704195,
+    "stage": "A",
+    "epoch": 5,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.035301148891448975,
+    "gate_mean": 0.06027313694357872,
+    "score_pos_mean": 0.5681615620851517,
+    "score_neg_mean": 0.4830228164792061,
+    "gate_loss": 2.038096696138382,
+    "total_loss": 6.149591326713562,
+    "stage": "B",
+    "epoch": 1,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03523418586701155,
+    "gate_mean": 0.10595577210187912,
+    "score_pos_mean": 0.5717895925045013,
+    "score_neg_mean": 0.4870606139302254,
+    "gate_loss": 1.6181175410747528,
+    "total_loss": 4.889586806297302,
+    "stage": "B",
+    "epoch": 2,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.035037615336477757,
+    "gate_mean": 0.18330331146717072,
+    "score_pos_mean": 0.5842240899801254,
+    "score_neg_mean": 0.49999698251485825,
+    "gate_loss": 1.2092840373516083,
+    "total_loss": 3.662889778614044,
+    "stage": "B",
+    "epoch": 3,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03345652436837554,
+    "gate_mean": 0.2851736694574356,
+    "score_pos_mean": 0.6010891944169998,
+    "score_neg_mean": 0.5141528397798538,
+    "gate_loss": 0.8171218633651733,
+    "total_loss": 2.484822154045105,
+    "stage": "B",
+    "epoch": 4,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03353605326265097,
+    "gate_mean": 0.4256686493754387,
+    "score_pos_mean": 0.6204422414302826,
+    "score_neg_mean": 0.5345865190029144,
+    "gate_loss": 0.5890049189329147,
+    "total_loss": 1.800550788640976,
+    "stage": "B",
+    "epoch": 5,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03087590914219618,
+    "gate_mean": 0.527511790394783,
+    "score_pos_mean": 0.6374422907829285,
+    "score_neg_mean": 0.5486072897911072,
+    "gate_loss": 0.6478435695171356,
+    "total_loss": 1.9744066298007965,
+    "stage": "C",
+    "epoch": 1,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03423859924077988,
+    "gate_mean": 0.47412482649087906,
+    "score_pos_mean": 0.6288156658411026,
+    "score_neg_mean": 0.5441608875989914,
+    "gate_loss": 0.6214857548475266,
+    "total_loss": 1.898695856332779,
+    "stage": "C",
+    "epoch": 2,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.031304528936743736,
+    "gate_mean": 0.40963296592235565,
+    "score_pos_mean": 0.6244224607944489,
+    "score_neg_mean": 0.5345700532197952,
+    "gate_loss": 0.5853430926799774,
+    "total_loss": 1.7873338460922241,
+    "stage": "C",
+    "epoch": 3,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.03221244551241398,
+    "gate_mean": 0.37944021821022034,
+    "score_pos_mean": 0.619100347161293,
+    "score_neg_mean": 0.532924234867096,
+    "gate_loss": 0.6229123771190643,
+    "total_loss": 1.9009495973587036,
+    "stage": "C",
+    "epoch": 4,
+    "n_batches": 4
+  },
+  {
+    "margin_loss": 0.029760105069726706,
+    "gate_mean": 0.3772658482193947,
+    "score_pos_mean": 0.615452840924263,
+    "score_neg_mean": 0.5250831991434097,
+    "gate_loss": 0.6164367496967316,
+    "total_loss": 1.8790703415870667,
+    "stage": "C",
+    "epoch": 5,
+    "n_batches": 4
+  }
+]

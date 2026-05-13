@@ -24,12 +24,12 @@ keeps the cold-start guarantee even after unfreezing.
 Usage:
     python scripts/pretrain_itma.py
     python scripts/pretrain_itma.py --triples data/itma_pretrain/triples.jsonl \
-        --out checkpoints/itma_head_v4.pt \
+        --out checkpoints/itma_head_v5.pt \
         --epochs-a 5 --epochs-b 5 --epochs-c 5 --batch-size 64
 
 Outputs:
-    checkpoints/itma_head_v4.pt              (final weights)
-    checkpoints/itma_head_v4.train_log.json  (loss / gate stats per epoch)
+    checkpoints/itma_head_v5.pt              (final weights)
+    checkpoints/itma_head_v5.train_log.json  (loss / gate stats per epoch)
 """
 
 from __future__ import annotations
@@ -57,11 +57,12 @@ from src.itma.scoring_head import ITMAHead, BETA_DENSE, BETA_MEM, D, P  # noqa: 
 
 ENCODER_NAME = "all-MiniLM-L6-v2"
 DEFAULT_TRIPLES = "data/itma_pretrain/triples.jsonl"
-DEFAULT_OUT = "checkpoints/itma_head_v4.pt"
+DEFAULT_OUT = "checkpoints/itma_head_v5.pt"
 ATTEND_TEMPERATURE = 0.1            # matches MemoryBank.attend()
 MEM_K = 4                           # neighbours per memory variant
 MARGIN = 0.1
-LAMBDA_GATE = 0.5                   # weight on gate BCE loss
+LAMBDA_GATE = 3.0                   # weight on gate BCE loss
+GATE_LR_MULT = 10.0                 # gate params train at LR * this multiplier
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +266,7 @@ def head_score_with_gate(
     """Forward with explicit return of gate value + raw mlp score for diagnostics."""
     q_proj = head.proj_q(q)
     m_proj = head.proj_m(m)
-    feats = torch.cat([q, c, m, q * c, q_proj * m_proj], dim=-1)
+    feats = torch.cat([q, c, m, q * c, c * m, q_proj * m_proj], dim=-1)
     s = torch.sigmoid(head.mlp(feats).squeeze(-1))
     gate_logit = head.gate(torch.cat([q, m], dim=-1)).squeeze(-1)
     g = torch.sigmoid(gate_logit)
@@ -322,13 +323,13 @@ STAGE_CONFIGS = {
         "mode_mix":      {"empty": 0.3, "helpful": 0.7},
         "freeze_gate":   False,
         "use_gate_loss": True,
-        "lr":            1e-4,
+        "lr":            1e-3,
     },
     "C": {
         "mode_mix":      {"empty": 0.2, "helpful": 0.4, "unhelpful": 0.4},
         "freeze_gate":   False,
         "use_gate_loss": True,
-        "lr":            5e-5,
+        "lr":            5e-4,
     },
 }
 
@@ -352,8 +353,18 @@ def run_stage(
 ):
     cfg = STAGE_CONFIGS[stage]
     set_gate_trainable(head, not cfg["freeze_gate"])
-    params = [p for p in head.parameters() if p.requires_grad]
-    opt = torch.optim.Adam(params, lr=cfg["lr"])
+
+    # Two param groups: gate params get a higher LR so they can escape the
+    # bias=-3 init quickly. Stage A freezes the gate so this is a no-op there.
+    gate_param_ids = {id(p) for p in head.gate.parameters()}
+    body_params = [p for p in head.parameters()
+                   if p.requires_grad and id(p) not in gate_param_ids]
+    gate_params = [p for p in head.gate.parameters() if p.requires_grad]
+    param_groups = [{"params": body_params, "lr": cfg["lr"]}]
+    if gate_params:
+        param_groups.append({"params": gate_params, "lr": cfg["lr"] * GATE_LR_MULT})
+    opt = torch.optim.Adam(param_groups)
+    params = body_params + gate_params
 
     n = len(triples)
     indices = list(range(n))

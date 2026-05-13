@@ -1,6 +1,6 @@
 """ASR transcription — faster-whisper backend with INT8 quantization and VAD.
 
-Objective 5: Optimize ASR for Edge Computing
+Step 2 (pipeline-flow ordering): Optimize ASR for Edge Computing
   - INT8 quantization (compute_type="int8") reduces model memory ~4× vs FP32
   - Voice Activity Detection (vad_filter=True) skips silent segments,
     reducing hallucinations and speeding up transcription on CPU
