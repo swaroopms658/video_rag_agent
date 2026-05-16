@@ -125,7 +125,7 @@ st.divider()
 
 # ── Step 0: Architecture ─────────────────────────────────────────────────────
 if step == 0:
-    st.title("Agentic Video RAG, An Explainable Framework For Video Retrieval")
+    st.title("How ITMA works")
 
     col_arch, col_legend = st.columns([3, 2], gap="large")
 

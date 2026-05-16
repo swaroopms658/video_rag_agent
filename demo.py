@@ -19,8 +19,7 @@ inject_global_css()
 st.title("Inference-Time Memory Adaptation for Cold-Start Educational RAG")
 st.markdown(
     "<div style='font-size:1.0rem;color:#57534E;margin:-0.4rem 0 0.8rem 0'>"
-    "ITMA — also known as <b>Agentic Video RAG</b>, an explainable framework "
-    "for video retrieval."
+    "ITMA - also known as <b>Agentic Video RAG An Explainable Framework For Video Retrieval</b>"
     "</div>",
     unsafe_allow_html=True,
 )
