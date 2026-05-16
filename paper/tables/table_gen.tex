@@ -1,8 +1,11 @@
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \small
-\caption{Generation quality on LectureRAG-75 test split (n=59).
-BS-F1 = BERTScore F1; Faithfulness = LLM-judge.}
+\caption{Generation quality on LectureRAG-75 test split (n=59, N=0
+cold start).  BS-F1 = BERTScore F1; Faithfulness = LLM-judge.
+End-to-end generation was evaluated on the 59-item legacy test split;
+re-running on the full 89-item test split is deferred to the
+camera-ready revision due to API budget constraints.}
 \label{tab:gen_quality}
 \begin{tabular}{lrrrr}
 \toprule

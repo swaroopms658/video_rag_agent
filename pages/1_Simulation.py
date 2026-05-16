@@ -131,64 +131,233 @@ if step == 0:
 
     with col_arch:
         st.markdown(
-            """
-            ```
-            Query
-              │
-              ▼
-            FAISS over-fetch  ──►  Top-20 candidate chunks
-              │
-              ▼
-            ┌─────────────────────────────────┐
-            │  Frozen Scoring Head (pretrained │
-            │  once on held-out domains,       │
-            │  never retrained at deployment)  │
-            │                                 │
-            │  score(q, c, m)                  │
-            │     q = query embedding          │
-            │     c = chunk embedding          │
-            │     m = memory bank summary      │
-            └──────────────┬──────────────────┘
-                           │
-              ┌────────────▼────────────┐
-              │   Memory Bank attend()  │  ← weighted summary of past queries
-              └─────────────────────────┘
-              │
-              ▼
-            Re-ranked Top-K  ──►  Response
-              │
-              ▼  (after answer, user feedback)
-            ┌─────────────────────────────────┐
-            │  Memory Bank update             │
-            │   • add(q, helpful_chunk)       │
-            │   • counterfactual reweighting  │
-            └─────────────────────────────────┘
-            ```
+            f"""
+            <style>
+              .arch-box {{
+                border: 1.5px solid {ORANGE_200}; border-radius: 10px;
+                background: #FFF7ED; padding: 0.65rem 0.9rem;
+                color: #1C1917; box-shadow: 0 1px 4px rgba(249,115,22,0.07);
+              }}
+              .arch-head {{ background: {ORANGE_BG}; border-color: {ORANGE}; }}
+              .arch-title {{ font-weight: 700; font-size: 0.93rem; color: #1C1917; }}
+              .arch-sub {{ font-size: 0.78rem; color: #57534E; margin-top: 0.15rem;
+                           line-height: 1.45; }}
+              .arch-arrow-row {{
+                display: flex; align-items: center; justify-content: center;
+                gap: 0.55rem; margin: 0.30rem 0;
+              }}
+              .arch-num {{
+                display: inline-flex; align-items: center; justify-content: center;
+                width: 26px; height: 26px; border-radius: 50%;
+                background: {ORANGE}; color: #fff; font-weight: 800;
+                font-size: 0.82rem; box-shadow: 0 1px 3px rgba(249,115,22,0.35);
+                flex-shrink: 0;
+              }}
+              .arch-arrow {{
+                font-size: 1.4rem; color: {ORANGE_DARK}; font-weight: 800;
+                line-height: 1;
+              }}
+              .arch-lbl {{ font-size: 0.78rem; color: {ORANGE_DARK}; font-weight: 600; }}
+              .arch-phase {{
+                font-size: 0.70rem; font-weight: 800; color: {ORANGE_DARK};
+                letter-spacing: 0.10em; text-transform: uppercase;
+                border-top: 1px dashed {ORANGE_200}; padding-top: 0.45rem;
+                margin: 0.6rem 0 0.25rem 0;
+              }}
+              .arch-pair {{
+                display: grid; grid-template-columns: 1fr auto 1fr;
+                align-items: stretch; gap: 0.55rem; margin: 0.30rem 0;
+              }}
+              .arch-pair-mid {{
+                display: flex; flex-direction: column; align-items: center;
+                justify-content: center; gap: 0.25rem;
+                font-size: 0.72rem; color: {ORANGE_DARK}; font-weight: 600;
+              }}
+              .arch-loop {{
+                font-size: 0.74rem; color: {ORANGE_DARK}; font-style: italic;
+                background: #FFFBF5; border-left: 3px solid {ORANGE};
+                padding: 0.35rem 0.6rem; margin: 0.30rem 0; line-height: 1.45;
+              }}
+            </style>
+
+            <div class="arch-phase">Phase A · Ingestion (per new video)</div>
+
+            <div class="arch-box arch-head">
+              <div class="arch-title">🎬 Video Input Handler</div>
+              <div class="arch-sub">Accepts uploaded lecture/training video.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">1</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Extracted Audio</span>
+            </div>
+
+            <div class="arch-box">
+              <div class="arch-title">🎙️ ASR Module</div>
+              <div class="arch-sub">faster-whisper INT8 — audio → timestamped text.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">2</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Transcript</span>
+            </div>
+
+            <div class="arch-box">
+              <div class="arch-title">✂️ Text Chunking Module</div>
+              <div class="arch-sub">Splits transcript into overlapping chunks.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">3</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Text Chunks</span>
+            </div>
+
+            <div class="arch-box">
+              <div class="arch-title">🧬 Embedding Generator</div>
+              <div class="arch-sub">all-MiniLM-L6-v2 — 384-d vector per chunk.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">4</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Embeddings</span>
+            </div>
+
+            <div class="arch-box arch-head">
+              <div class="arch-title">📚 FAISS Indexing</div>
+              <div class="arch-sub">Flat inner-product index over all chunks.</div>
+            </div>
+
+            <div class="arch-phase">Phase B · User entry &amp; agentic routing</div>
+
+            <div class="arch-box arch-head">
+              <div class="arch-title">👤 User</div>
+              <div class="arch-sub">Submits a question or a new video.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">5</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Query / Video Input</span>
+            </div>
+
+            <div class="arch-pair">
+              <div class="arch-box arch-head" style="grid-column:1">
+                <div class="arch-title">🤖 Agentic Decision Engine</div>
+                <div class="arch-sub">Routes: cache hit · retrieve · ingest new video.</div>
+              </div>
+              <div class="arch-pair-mid">
+                <div><span class="arch-num">6</span></div>
+                <div class="arch-arrow">→</div>
+                <div>Check Cache</div>
+                <div class="arch-arrow">←</div>
+                <div><span class="arch-num">7</span> Cache Status</div>
+              </div>
+              <div class="arch-box" style="grid-column:3">
+                <div class="arch-title">💾 Cache Manager</div>
+                <div class="arch-sub">Serves cached answers for repeat queries.</div>
+              </div>
+            </div>
+
+            <div class="arch-loop">
+              <span class="arch-num" style="width:22px;height:22px;font-size:0.74rem">8</span>
+              &nbsp;<b>If Needed</b> — Agentic Decision Engine routes back up to the
+              <b>Video Input Handler</b> when a new video must be ingested before
+              the query can be answered.
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">9</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Process Query</span>
+            </div>
+
+            <div class="arch-phase">Phase C · Retrieval &amp; response</div>
+
+            <div class="arch-pair">
+              <div class="arch-box arch-head" style="grid-column:1">
+                <div class="arch-title">🔍 Query Processor</div>
+                <div class="arch-sub">Embeds q, queries FAISS, assembles context.</div>
+              </div>
+              <div class="arch-pair-mid">
+                <div><span class="arch-num">10</span></div>
+                <div class="arch-arrow">→</div>
+                <div>Search Relevant Data</div>
+                <div class="arch-arrow">←</div>
+                <div><span class="arch-num">11</span> Retrieved Chunks</div>
+              </div>
+              <div class="arch-box" style="grid-column:3">
+                <div class="arch-title">📚 FAISS Indexing</div>
+                <div class="arch-sub">Same index built in Phase&nbsp;A.</div>
+              </div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">12</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Query + Context</span>
+            </div>
+
+            <div class="arch-box">
+              <div class="arch-title">🧠 LLM Response Generator</div>
+              <div class="arch-sub">Grounded answer conditioned on retrieved chunks.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">13</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Final Answer</span>
+            </div>
+
+            <div class="arch-box">
+              <div class="arch-title">🖥️ Output Interface</div>
+              <div class="arch-sub">Renders answer + citations to the UI.</div>
+            </div>
+
+            <div class="arch-arrow-row">
+              <span class="arch-num">14</span><span class="arch-arrow">↓</span>
+              <span class="arch-lbl">Display Response</span>
+            </div>
+
+            <div class="arch-box arch-head">
+              <div class="arch-title">👤 User</div>
+              <div class="arch-sub">Reads response · may mark chunks helpful · may ask the next question (loops back to arrow&nbsp;5).</div>
+            </div>
             """,
+            unsafe_allow_html=True,
         )
 
     with col_legend:
         st.markdown(
             """
-            **Three components:**
+            **Arrow legend (14 labelled edges):**
 
-            🔒 **Frozen scoring head**
-            Pretrained on 412 triples from held-out domains (15 epochs,
-            loss 0.1532). Never updated again.
+            **Phase A — Ingestion**
+            **1** Extracted Audio · **2** Transcript · **3** Text Chunks ·
+            **4** Embeddings
 
-            🧠 **Memory bank**
-            Stores (query embedding, helpful-chunk embedding, chunk ID) tuples
-            with a freshness-decay weight λ.
+            **Phase B — User entry & routing**
+            **5** Query / Video Input · **6** Check Cache ·
+            **7** Cache Status · **8** *If Needed* loop back to Video Input ·
+            **9** Process Query
 
-            ↩ **Counterfactual reweighting**
-            After each feedback signal, the bank adjusts entry weights
-            based on which entries were attended during the query — reward
-            flows back proportional to attention (η = learning rate).
+            **Phase C — Retrieval & response**
+            **10** Search Relevant Data · **11** Retrieved Chunks ·
+            **12** Query + Context · **13** Final Answer ·
+            **14** Display Response
 
-            **ID-boost (key finding)**
-            When a candidate chunk ID matches a memory entry, its score is
-            boosted by query-memory cosine similarity × effective weight.
-            The ablation shows this drives all adaptation (gate bias ≈ −3).
+            ---
+
+            **Key components**
+
+            🤖 **Agentic Decision Engine**
+            The router — decides whether to ingest a new video, hit the
+            cache, or run retrieval. Closes the loop between user, cache,
+            and the retrieval pipeline.
+
+            💾 **Cache Manager**
+            Skips ASR / embedding / retrieval for repeat queries.
+
+            📚 **FAISS Indexing**
+            The single shared index — written by Phase A, read by Phase C.
+
+            🧠 **LLM Response Generator**
+            Produces the grounded answer from query + retrieved chunks.
             """
         )
 

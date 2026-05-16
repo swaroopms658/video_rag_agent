@@ -17,6 +17,32 @@ st.set_page_config(
 inject_global_css()
 
 st.title("Inference-Time Memory Adaptation for Cold-Start Educational RAG")
+st.markdown(
+    "<div style='font-size:1.0rem;color:#57534E;margin:-0.4rem 0 0.8rem 0'>"
+    "ITMA — also known as <b>Agentic Video RAG</b>, an explainable framework "
+    "for video retrieval."
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    f"""
+    <div style="background:#FAFAF9;border-left:4px solid {ORANGE};
+                border-radius:6px;padding:0.9rem 1.1rem;margin:0.2rem 0 1.1rem 0;
+                color:#1C1917;font-size:0.94rem;line-height:1.55">
+        <b style="color:{ORANGE_DARK}">What does "inference" mean?</b><br>
+        In machine learning, <b>training</b> is the phase where a model learns from data
+        by adjusting its internal parameters. <b>Inference</b> is everything that happens
+        <i>after</i> training — when the model is deployed and used to answer real
+        queries from real users. The model's weights are frozen; it only reads inputs
+        and produces outputs.<br><br>
+        <b>Inference-Time Memory Adaptation</b> means the system keeps getting better
+        <i>during inference</i> — by writing new evidence into a small memory bank as
+        users interact with it — without ever retraining the underlying model.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ── What is ITMA? ───────────────────────────────────────────────────────────
 st.markdown(

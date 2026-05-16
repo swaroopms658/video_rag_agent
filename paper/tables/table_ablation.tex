@@ -1,16 +1,22 @@
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \small
 \caption{Ablation study: head vs.\ ID-boost contribution.
-LectureRAG-75 test split (n=59, 3 seeds). H@5 at N=0 and N=50.}
+LectureRAG-75 test split (n=89, 5 seeds), $\lambda{=}0.01,~\eta{=}0.05$.
+N=0 / N=50 values for each metric.  The two pathways are complementary:
+the boost dominates Hit@5 (lifting gold chunks into the top-10), while the
+scoring head dominates MRR and nDCG@10 (sharpening rank within the
+top-10).  Full ITMA balances both.}
 \label{tab:ablation}
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrrrr}
 \toprule
-Variant & N=0 H@5 & N=50 H@5 & Adapts? \\
+                          & \multicolumn{2}{c}{Hit@5} & \multicolumn{2}{c}{MRR@10} & \multicolumn{2}{c}{nDCG@10} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Variant                   & N=0 & N=50 & N=0 & N=50 & N=0 & N=50 \\
 \midrule
-ITMA (head + boost) & 0.8305 & 0.9379 & \checkmark \\
-ITMA no-boost (head only) & 0.8305 & 0.8305 & $\times$ (flat) \\
-ITMA boost-only & 0.8475 & 0.9379 & \checkmark \\
+ITMA (head + boost)       & 0.831 & 0.854 & 0.644 & \textbf{0.694} & 0.690 & \textbf{0.746} \\
+ITMA no-boost (head only) & 0.820 & 0.838 & 0.652 & 0.642 & 0.698 & 0.682 \\
+ITMA boost-only           & 0.843 & \textbf{0.881} & 0.662 & 0.631 & 0.704 & 0.698 \\
 \bottomrule
 \end{tabular}
 \end{table}

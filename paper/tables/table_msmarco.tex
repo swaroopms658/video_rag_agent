@@ -1,18 +1,18 @@
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
 \small
-\caption{MS-MARCO passage retrieval (external benchmark, n=100).
+\caption{MS-MARCO passage retrieval (external benchmark, n=500).
 ITMA (N=0) evaluated cold-start with no in-domain feedback.}
 \label{tab:msmarco}
 \begin{tabular}{lrrrrr}
 \toprule
 System & H@1 & H@5 & MRR@10 & nDCG@10 & R@10 \\
 \midrule
-BM25 & 0.850 & 0.970 & 0.901 & 0.918 & 0.970 \\
-Dense-MiniLM & 0.930 & \textbf{1.000} & 0.963 & 0.973 & \textbf{1.000} \\
-Dense-MPNet & \textbf{0.940} & \textbf{1.000} & \textbf{0.968} & \textbf{0.977} & \textbf{1.000} \\
-Cross-Encoder & 0.910 & \textbf{1.000} & 0.953 & 0.965 & \textbf{1.000} \\
-\textbf{ITMA (N=0)} & 0.930 & \textbf{1.000} & 0.962 & 0.972 & \textbf{1.000} \\
+BM25 & 0.856 & 0.960 & 0.902 & 0.921 & 0.976 \\
+Dense-MiniLM & 0.926 & 0.994 & 0.959 & 0.969 & \textbf{0.996} \\
+Dense-MPNet & 0.938 & \textbf{0.996} & 0.966 & \textbf{0.974} & \textbf{0.996} \\
+Cross-Encoder & \textbf{0.942} & 0.994 & \textbf{0.967} & \textbf{0.974} & 0.994 \\
+\textbf{ITMA (N=0)} & 0.926 & 0.994 & 0.959 & 0.969 & \textbf{0.996} \\
 \bottomrule
 \end{tabular}
 \end{table}
