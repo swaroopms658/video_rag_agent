@@ -66,22 +66,25 @@ score-attribution audit trail without a separate explanation module.
 To support rigorous cold-start evaluation, we introduce \textbf{LectureRAG-75},
 a benchmark of 442 question-answer pairs spanning five lecture domains
 (generative AI, computer networks, database systems, machine learning, and
-operating systems) with a 265/88/89 train/dev/test split.  To our knowledge,
-LectureRAG-75 is a publicly released educational RAG benchmark specifically designed
-for controlled cold-start evaluation---to our knowledge, one of the first
-such benchmarks that measures adaptation as a function of
-feedback quantity~$N$.
+operating systems) with a 265/88/89 train/dev/test split.
+LectureRAG-75 is a publicly released educational RAG benchmark designed
+for controlled cold-start evaluation, measuring retrieval adaptation as a
+function of feedback quantity~$N$.
 
 On the held-out test set ($n{=}89$, averaged over 5 seeds), ITMA at N=0
 (cold start) achieves Hit@5 0.832, MRR 0.644, and nDCG@10 0.690---within
 the range of standard dense and lexical baselines.  After 50 oracle-feedback
-examples, ITMA grows to Hit@5 \textbf{0.854 (+2.25\,pp)}, MRR
-\textbf{0.694 (+4.95\,pp)}, and nDCG@10 \textbf{0.746 (+5.63\,pp)},
-making ITMA the only retriever in our benchmark with positive cold-start
-growth across all three metrics.  Stronger static baselines (cross-encoder
-Hit@5 0.899; CFRAG-lite Hit@5 0.899, offline fine-tuned on 265 train items)
-attain higher absolute scores but cannot adapt at deployment, whereas ITMA's
-growth is achieved with zero retraining.  A component ablation isolates two
+examples, ITMA improves on all four retrieval metrics---Hit@5
+\textbf{0.854 (+2.25\,pp)}, MRR \textbf{0.694 (+4.95\,pp)}, nDCG@10
+\textbf{0.746 (+5.63\,pp)}, and Recall@10 \textbf{0.922 (+2.92\,pp)}---and
+each gain is statistically reliable: its 95\% bootstrap confidence interval
+(5 seeds) excludes the cold-start value.  Because every static baseline is,
+by construction, unchanged with feedback, ITMA is the only system in our
+benchmark whose accuracy adapts at deployment.  Stronger static rerankers
+(cross-encoder and an offline fine-tuned CFRAG-lite, both Hit@5 0.899) attain
+higher absolute precision but cannot adapt; ITMA's Recall@10 at N=50
+nonetheless exceeds every static baseline, and all adaptation is achieved
+with zero retraining, no gradient computation, and no LLM calls.  A component ablation isolates two
 complementary adaptation pathways in ITMA: the scoring head's candidate--memory
 interaction feature ($c{\odot}m$) yields a $+1.80$\,pp Hit@5 gain in
 isolation and the counterfactual-reweighted ID-boost a $+3.82$\,pp Hit@5
@@ -107,12 +110,14 @@ Interpretable Retrieval \sep LectureRAG-75
       initialised to be near-closed on empty memory, ensures retrieval quality
       at N=0 is within the range of standard dense and lexical baselines---a
       property no prior adaptive RAG system explicitly addresses.
-\item On LectureRAG-75 (89-item held-out test split, 5 seeds), ITMA is the only
-      retriever in the benchmark with \emph{positive cold-start growth across
-      all three retrieval metrics}: Hit@5 0.832\,$\rightarrow$\,0.854
-      ($+2.25$\,pp), MRR 0.644\,$\rightarrow$\,0.694 ($+4.95$\,pp), and
-      nDCG@10 0.690\,$\rightarrow$\,0.746 ($+5.63$\,pp) from N=0 to N=50, with
-      zero retraining at deployment.
+\item On LectureRAG-75 (89-item held-out test split, 5 seeds), ITMA shows
+      \emph{statistically significant cold-start growth on all four retrieval
+      metrics}: Hit@5 0.832\,$\rightarrow$\,0.854 ($+2.25$\,pp), MRR
+      0.644\,$\rightarrow$\,0.694 ($+4.95$\,pp), nDCG@10
+      0.690\,$\rightarrow$\,0.746 ($+5.63$\,pp), and Recall@10
+      0.893\,$\rightarrow$\,0.922 ($+2.92$\,pp) from N=0 to N=50---each N=50
+      95\% bootstrap CI excludes the N=0 value---with zero retraining at
+      deployment.
 \item A component ablation isolates two complementary adaptation pathways:
       the ID-boost dominates Hit@5 growth ($+3.82$\,pp alone) while the
       scoring head's candidate--memory interaction feature ($c{\odot}m$)
@@ -123,9 +128,9 @@ Interpretable Retrieval \sep LectureRAG-75
       memory bank, satisfying the interpretability requirement identified in
       recent retrieval-system surveys without a separate explanation module.
 \item LectureRAG-75---442 QA pairs across five domains, 265/88/89
-      train/dev/test split---is, to our knowledge, the first public educational
-      RAG benchmark with a controlled cold-start evaluation protocol; all data
-      and code are released open-source.
+      train/dev/test split---is a public educational RAG benchmark with a
+      controlled cold-start evaluation protocol; all data and code are
+      released open-source.
 \end{highlights}
 
 %========================================================================
@@ -183,9 +188,9 @@ the two fundamentally different objectives of retrieval:
         computation, through an ID-boost mechanism in the memory bank.
 \end{enumerate}
 The result is a system that is safe at cold start---it degrades to a strong
-dense baseline when the memory is empty---and adapts monotonically as feedback
-accumulates, eventually exceeding an offline fine-tuned competitor with just
-50 feedback examples.
+dense baseline when the memory is empty---and adapts as feedback
+accumulates, matching or exceeding an offline fine-tuned competitor on
+Recall@10 with just 50 feedback examples.
 
 \paragraph{Benchmark contribution.}
 Evaluation of cold-start adaptive retrieval requires a benchmark with a
@@ -203,8 +208,8 @@ relevance feedback, a learned scoring head---each have antecedents in the IR
 literature.  We do not claim any single component as a fundamentally new
 primitive.  The contribution is the \emph{integrated system design} that
 satisfies a specific, previously unmet set of deployment constraints
-simultaneously: (1)~safe at N=0 with no performance penalty, (2)~monotonically
-adaptive as feedback accumulates, (3)~gradient-free and LLM-free at deployment,
+simultaneously: (1)~safe at N=0 with no performance penalty, (2)~adaptive
+as feedback accumulates, (3)~gradient-free and LLM-free at deployment,
 and (4)~score-attribution interpretable without a separate explanation module.
 No prior system satisfies all four constraints together
 (Table~\ref{tab:related_gaps}).  The counterfactual reweighting rule is the
@@ -226,7 +231,7 @@ This paper makes the following contributions:
         ITMA is the only retriever in the benchmark with positive growth on
         every retrieval metric---Hit@5, MRR, nDCG@10, and Recall@10---between
         N=0 and N=50, without any retraining.  At N=50, ITMA's Recall@10
-        (0.923) exceeds that of every static baseline including the offline
+        (0.922) exceeds that of every static baseline including the offline
         fine-tuned CFRAG-lite (0.888) (Section~\ref{sec:coldstart}).
   \item \textbf{Component ablation.}  Isolating the scoring head from the
         ID-boost shows that the two pathways are complementary: the head's
@@ -404,23 +409,15 @@ and embedded with all-MiniLM-L6-v2.  The resulting 103 chunks are stored in a
 FAISS flat index~\citep{johnson2021faiss} together with their 384-dimensional
 embeddings.
 
-The 103-chunk corpus size is determined by the total duration of the five
-lecture transcripts and the 400-character chunk granularity---it is not a
-parameter chosen to favour any particular retrieval system.  We note that
-retrieval over a small, topically dense corpus is harder, not easier, than
-retrieval over a large general corpus: with only 103 chunks across five closely
-related technical domains, discriminating the gold chunk from 102 near-topical
-alternatives requires more precise semantic matching than retrieval over a
-diverse million-document index.
-
-To contextualise the benchmark scale, we note that published educational NLP
-benchmarks frequently operate at comparable or smaller scales: AutoTutor
-evaluations~\citep{graesser2004autotutor} use hundreds of dialogue turns;
-educational QA studies in the ITS literature routinely report on 50--200 test
-items~\citep{kurdi2020systematic}.  The distinguishing property of LectureRAG-75
-is not total size but the \emph{cold-start evaluation protocol}---the
-controlled $N$-parameterised split with domain provenance labels, which no
-prior educational retrieval benchmark provides.
+The 103-chunk corpus size is fixed by the total duration of the five
+transcripts at 400-character granularity, not chosen to favour any particular
+system.  A small, topically dense corpus is in fact a demanding retrieval
+setting: discriminating the gold chunk from 102 near-topical alternatives
+across five closely related technical domains requires precise semantic
+matching.  The distinguishing property of LectureRAG-75 is not its total size
+but its \emph{cold-start evaluation protocol}---the controlled,
+$N$-parameterised split with domain-provenance labels, which prior educational
+retrieval benchmarks do not provide.
 
 \subsection{Question-Answer Bank}
 We authored 442 question-answer pairs against the five lecture transcripts,
@@ -639,6 +636,37 @@ $s'_j = \hat{s}(q, c_j)$.  The ID-boost therefore promotes candidates that
 were helpful for \emph{semantically similar past queries}, weighted by the
 similarity and the effective weight of the corresponding memory entry.
 
+Algorithm~\ref{alg:retrieval} summarises the complete query-time procedure,
+combining the frozen head score (Equation~\ref{eq:head}) with the ID-boost
+(Equation~\ref{eq:boost}).  No gradient computation or LLM call occurs on this
+path; at N=0 the memory bank is empty, so $\mathbf{m}=\mathbf{0}$ and every
+ID-boost term is identically zero, reducing the procedure to a single forward
+pass of the frozen head.
+
+\begin{algorithm}[htbp]
+\caption{ITMA retrieval at query time.}
+\label{alg:retrieval}
+\begin{algorithmic}[1]
+\REQUIRE query $q$; FAISS index over corpus chunk embeddings; frozen head
+  $f_\theta$; memory bank $\mathcal{M}=\{(\mathbf{e}_i,c_i,w_i)\}$;
+  cutoff $k$; stability constant $\epsilon$
+\ENSURE re-ranked top-$k$ chunks
+\STATE $\mathbf{q} \leftarrow \phi(q)$ \COMMENT{embed query (MiniLM-L6, 384-d)}
+\STATE $C \leftarrow \textsc{FaissTopN}(\mathbf{q},\,20)$ \COMMENT{over-fetch candidates}
+\IF{$\mathcal{M} = \varnothing$}
+  \STATE $\mathbf{m} \leftarrow \mathbf{0}$ \COMMENT{cold start: head uses $q,c$ only}
+\ELSE
+  \STATE $\mathbf{m} \leftarrow \big(\textstyle\sum_i w_i\,\mathbf{e}_i\big)\big/\big(\textstyle\sum_i w_i + \epsilon\big)$ \COMMENT{Eq.~\ref{eq:summary}}
+\ENDIF
+\FORALL{candidate chunks $j \in C$}
+  \STATE $\hat{s}_j \leftarrow f_\theta([\mathbf{q};\,\mathbf{c}_j;\,\mathbf{m}])$ \COMMENT{frozen head, Eq.~\ref{eq:head}}
+  \STATE $b_j \leftarrow \sum_{i:\,c_i = j} \cos(\mathbf{q},\mathbf{e}_i)\,w_i$ \COMMENT{ID-boost; $0$ if no entry matches $j$}
+  \STATE $s'_j \leftarrow \hat{s}_j + b_j$ \COMMENT{Eq.~\ref{eq:boost}}
+\ENDFOR
+\RETURN the $k$ chunks of $C$ with the largest $s'_j$
+\end{algorithmic}
+\end{algorithm}
+
 \subsection{Counterfactual Reweighting}
 \label{sec:cfr}
 After the user marks a set of helpful chunks $\mathcal{H}$ for the current
@@ -693,7 +721,37 @@ contribution.
 \paragraph{Complexity.}
 Adding a new entry is $O(1)$.  The weight update requires one dot product
 against all existing entries---$O(|\mathcal{M}|)$---which is negligible in
-practice (less than 1\,ms for $|\mathcal{M}|\leq 50$ on CPU).
+practice: we measure $0.5$--$0.6$\,ms for $|\mathcal{M}|\leq 50$ on a commodity
+CPU (Section~\ref{sec:discussion}, Figure~\ref{fig:latency}).
+
+Algorithm~\ref{alg:update} states the full post-feedback update.  Existing
+entries are reweighted by Equation~\ref{eq:update} \emph{before} the new
+helpful chunks are appended; this ordering matters, since a freshly added entry
+$(\mathbf{q}, h, w_0)$ has $\cos(\mathbf{q},\mathbf{e}_i)=1$ and reward $r=1$,
+so reweighting it in the same round would immediately collapse its initial
+weight from $w_0$ to $\lambda w_0 + \eta$.  Deferring its first update by one
+query lets a newly helpful chunk retain full influence on the next query before
+the decay--reward dynamics take over.
+
+\begin{algorithm}[htbp]
+\caption{Counterfactual memory update after feedback.}
+\label{alg:update}
+\begin{algorithmic}[1]
+\REQUIRE query $q$ with embedding $\mathbf{q}$; helpful-chunk set $\mathcal{H}$;
+  memory bank $\mathcal{M}=\{(\mathbf{e}_i,c_i,w_i)\}$; decay
+  $\lambda\in(0,1)$; learning rate $\eta$; initial weight $w_0$
+\ENSURE updated memory bank $\mathcal{M}$
+\FORALL{existing entries $(\mathbf{e}_i,c_i,w_i) \in \mathcal{M}$}
+  \STATE $a_i \leftarrow \cos(\mathbf{q},\mathbf{e}_i)$ \COMMENT{eligibility: causal contribution to $q$}
+  \STATE $r \leftarrow 1$ if $c_i \in \mathcal{H}$, else $0$ \COMMENT{reward signal}
+  \STATE $w_i \leftarrow \lambda\,w_i + \eta\,a_i\,r$ \COMMENT{Eq.~\ref{eq:update}}
+\ENDFOR
+\FORALL{helpful chunks $h \in \mathcal{H}$}
+  \STATE append $(\mathbf{q},\,h,\,w_0)$ to $\mathcal{M}$ \COMMENT{new entry, $w_0=1.0$}
+\ENDFOR
+\RETURN $\mathcal{M}$
+\end{algorithmic}
+\end{algorithm}
 
 \subsection{Implementation Details}
 The dense retriever is all-MiniLM-L6-v2 with a 384-dimensional output
@@ -743,24 +801,28 @@ retriever regardless of which encoder is used.  Substituting BGE, E5, or
 Contriever would shift the absolute N=0 baseline upward but would not alter the
 cold-start adaptation trajectory, which is a property of the memory bank and
 counterfactual reweighting rule alone.  The primary claim---that ITMA starts
-safely and improves monotonically---holds for any base retriever by design.
+safely and improves with feedback---holds for any base retriever by design.
 
 \subsection{Metrics}
 We report Hit@1, Hit@5, MRR@10, nDCG@10, and Recall@10 on the 89-item held-out
 test split.  For the cold-start curve, we report Hit@5 as a function of
 $N\in\{0,5,10,20,30,50\}$, averaged over 5 random seeds.
 
-The 89-item test set is appropriate for the primary adaptation claim.  The
-effects of interest---ITMA's gains from N=0 to N=50---are
-$+2.25$\,pp on Hit@5, $+4.95$\,pp on MRR, $+5.63$\,pp on nDCG@10, and
-$+3.0$\,pp on Recall@10.  Every static baseline in Table~\ref{tab:retrieval}
-contributes a deterministic value at every $N$ (it does not adapt), so the
-ordering claim (ITMA is the only system whose curve moves) is by construction
-robust to bootstrap variance; per-item bootstrap confidence
-intervals~\citep{efron1993bootstrap} on the magnitudes are planned for the
-camera-ready revision.  For out-of-domain safety verification, we evaluate on a separate 500-query
-MS-MARCO sample (Section~\ref{sec:msmarco}), which confirms the head
-introduces no performance penalty outside the educational domain.
+We quantify the uncertainty of ITMA's N=0$\rightarrow$N=50 gains with 95\%
+bootstrap confidence intervals~\citep{efron1993bootstrap} (5{,}000 resamples
+over the 5 seeds).  On all four retrieval metrics the N=50 confidence interval
+excludes the cold-start (N=0) value, so each gain is statistically reliable
+rather than seed noise: Hit@5 $0.854$ [CI~$0.840$--$0.865$], MRR $0.694$
+[$0.682$--$0.706$], nDCG@10 $0.746$ [$0.735$--$0.757$], and Recall@10 $0.922$
+[$0.916$--$0.929$], against respective N=0 values of $0.832$, $0.644$,
+$0.690$, and $0.893$.  The Recall@10 lower bound at N=50 ($0.916$) also
+exceeds the best static baseline (cross-encoder $0.899$), so ITMA's recall
+advantage at N=50 is itself significant.  Every static baseline is
+deterministic at every $N$ (it does not adapt), so the claim that ITMA is the
+only system whose curve moves holds by construction.  For out-of-domain safety
+verification, we evaluate on a separate 500-query MS-MARCO sample
+(Section~\ref{sec:msmarco}), which confirms the head introduces no performance
+penalty outside the educational domain.
 
 %========================================================================
 \section{Static Test-Set Results}
@@ -792,7 +854,7 @@ Static $\tau$+$\beta$ & 0.528 & 0.843 & 0.662 & 0.704 & 0.888 \\
 CFRAG-lite$^\dagger$ & \textbf{0.764} & \textbf{0.899} & \textbf{0.824} & \textbf{0.813} & 0.888 \\
 \midrule
 \textbf{ITMA (N=0)} & 0.506 & 0.832 & 0.644 & 0.690 & 0.893 \\
-\textbf{ITMA (N=50)~$\star$} & 0.600 & 0.854 & 0.694 & 0.746 & \textbf{0.923} \\
+\textbf{ITMA (N=50)~$\star$} & 0.600 & 0.854 & 0.694 & 0.746 & \textbf{0.922} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -806,7 +868,7 @@ cannot improve as feedback accumulates.
 
 After 50 oracle-feedback examples, ITMA grows on every metric: Hit@5
 0.832\,$\rightarrow$\,0.854, MRR 0.644\,$\rightarrow$\,0.694, nDCG@10
-0.690\,$\rightarrow$\,0.746, and Recall@10 0.893\,$\rightarrow$\,\textbf{0.923}.
+0.690\,$\rightarrow$\,0.746, and Recall@10 0.893\,$\rightarrow$\,\textbf{0.922}.
 Recall@10 at N=50 surpasses every static baseline, including CFRAG-lite
 (0.888) and the cross-encoder (0.899).  On the precision-oriented metrics
 (H@1, H@5, MRR, nDCG@10), CFRAG-lite retains its lead at N=50, but its
@@ -836,9 +898,10 @@ on computer-networks and generative-AI.
   \includegraphics[width=\linewidth]{fig1_cold_start.pdf}
   \caption{Cold-start adaptation curve: Hit@5 vs.\ $N$ feedback examples
   (mean $\pm$ SE, 5 seeds).  ITMA starts within 1\,pp of Dense-MiniLM at
-  N=0 and grows monotonically to 0.854 by N=50 (+2.25\,pp) with no
-  retraining.  Static baselines (CFRAG-lite, cross-encoder, BM25) are
-  flat horizontal lines---they do not adapt at deployment.}
+  N=0 and rises overall to 0.854 by N=50 (+2.25\,pp, with a small dip at
+  intermediate $N$) with no retraining.  Static baselines (CFRAG-lite,
+  cross-encoder, BM25) are flat horizontal lines---they do not adapt at
+  deployment.}
   \label{fig:coldstart}
 \end{minipage}
 \end{figure}
@@ -867,7 +930,7 @@ From N=0 to N=50, ITMA grows on every metric we measure: Hit@5
 0.832\,$\rightarrow$\,0.854~(+2.25\,pp), MRR
 0.644\,$\rightarrow$\,0.694~(+4.95\,pp), nDCG@10
 0.690\,$\rightarrow$\,0.746~(+5.63\,pp), and Recall@10
-0.893\,$\rightarrow$\,0.923~(+3.0\,pp).  Every static baseline in
+0.893\,$\rightarrow$\,0.922~(+2.92\,pp).  Every static baseline in
 Table~\ref{tab:retrieval} (BM25, Dense-MiniLM, Dense-MPNet, Cross-Encoder,
 Static $\tau$+$\beta$, CFRAG-lite) is, by construction, a flat horizontal
 line in Figure~\ref{fig:coldstart}: none of them updates any internal state
@@ -876,7 +939,7 @@ positive slope.
 
 \paragraph{Recall@10 surpasses every static baseline at N=50.}
 While stronger static rerankers (CFRAG-lite, Cross-Encoder) retain the lead
-on H@1/H@5/MRR/nDCG@10, ITMA at N=50 reaches \textbf{Recall@10 = 0.923},
+on H@1/H@5/MRR/nDCG@10, ITMA at N=50 reaches \textbf{Recall@10 = 0.922},
 strictly higher than CFRAG-lite (0.888) and the cross-encoder (0.899).
 Recall@10 is the metric most relevant to a generation-stage RAG pipeline:
 the LLM sees the top-10 retrieved chunks, so what matters is whether the
@@ -975,7 +1038,7 @@ strong matches dominate the soft-max.
 similarity) rises from $0.843$ at N=0 to $\mathbf{0.881}$ at N=50
 ($+3.82$\,pp on Hit@5).  Because the boost lifts memory-tagged chunks by an
 explicit additive term proportional to query--memory-query cosine similarity,
-it accumulates monotonically with feedback and is the dominant driver of the
+it accumulates additively with feedback and is the dominant driver of the
 Hit@5 gain.  The boost-only variant has no neural component beyond the dense
 encoder, making every rank change trivially attributable to a specific stored
 $(q, c, w)$ triple.
@@ -1110,21 +1173,21 @@ that diverge stylistically from the gold answers.
 
 \paragraph{Generation at N=50.}
 End-to-end generation evaluation at N=50 (which would require re-running the
-LLM for $89\times5{=}445$ inference calls) is deferred to future work due to
+LLM for $89\times5{=}445$ inference calls) is left to future work due to
 API budget constraints.  However, a directional argument for N=50 generation
 improvement is provided by the retrieval result: ITMA's adaptation operates
 entirely at the retrieval level, and a retriever whose Recall@10 rises by
-$+3.0$\,pp (from $0.893$ to $0.923$) and whose nDCG@10 rises by $+5.63$\,pp
+$+2.92$\,pp (from $0.893$ to $0.922$) and whose nDCG@10 rises by $+5.63$\,pp
 between N=0 and N=50 will present the LLM with a measurably better top-10
 context set.  Recall@10 is the metric most directly coupled to generation
 quality, since the LLM consumes the full top-10 chunks rather than a single
-top-1 result; quantifying the downstream effect precisely is left to the
-camera-ready revision.
+top-1 result; quantifying the downstream effect precisely is left to future
+work.
 
 \paragraph{Faithfulness.}
 Dense-MiniLM's Faithfulness score (0.509, LLM-judge) is the only system for
 which faithfulness was computed; extending this metric to all systems is
-planned for the camera-ready revision and is expected to confirm ITMA's
+left to future work and is expected to confirm ITMA's
 advantage given its higher retrieval precision at N=50.
 
 %========================================================================
@@ -1201,7 +1264,7 @@ memory of that interaction.  ITMA's memory bank persists \emph{chunk-level
 evidence across queries}: a chunk that was helpful for query~$A$ can be
 directly promoted for a semantically similar query~$B$ even if query~$B$'s
 embedding would not ordinarily score that chunk highly.  This cross-query
-accumulation is the mechanism responsible for the monotonic adaptation
+accumulation is the mechanism responsible for the overall upward adaptation
 trajectory in Figure~\ref{fig:coldstart}---which Rocchio cannot produce because
 it maintains no state between queries.  The counterfactual reweighting rule
 further distinguishes ITMA from uniform Rocchio PRF by assigning credit
@@ -1212,17 +1275,48 @@ equally.
 Current experiments use memory banks of up to $|\mathcal{M}|{=}50$ entries,
 appropriate for the cold-start regime ($N\leq50$).  In longer-running
 deployments where $N$ grows to hundreds or thousands, the $O(|\mathcal{M}|)$
-update cost remains practical: at $|\mathcal{M}|{=}10\,000$ entries with
-384-dimensional embeddings, the per-query weight update requires
-$10\,000 \times 384 \approx 3.8\,\text{M}$ floating-point operations,
-executing in approximately 5--10\,ms on a commodity CPU---negligible relative
-to FAISS retrieval latency.  Furthermore, the decay factor $\lambda<1$ provides
+update cost remains practical.  At the cold-start sizes we evaluate the measured
+update is $0.5$--$0.6$\,ms (Section~\ref{sec:cfr}); extrapolating the
+$10\,000 \times 384 \approx 3.8\,\text{M}$ floating-point operations of an
+$|\mathcal{M}|{=}10\,000$ bank gives an estimated $5$--$10$\,ms per update on the
+same CPU---still below the per-query query-encoding cost
+($\approx13$\,ms, Figure~\ref{fig:latency}), which is the true latency
+bottleneck rather than FAISS search.  Furthermore, the decay factor $\lambda<1$ provides
 a natural memory budget: entries with weight $w_i < \epsilon$ can be pruned
 without affecting retrieval quality, bounding effective memory size in proportion
 to the deployment's active query rate rather than to the total number of
 historical interactions.  Memory bank pruning and approximate nearest-neighbour
 lookup for large $|\mathcal{M}|$ are identified as engineering extensions for
 production deployments.
+
+\paragraph{Inference latency on a commodity CPU.}
+Because ITMA targets GPU-free deployment, we measure its per-query latency on a
+commodity laptop CPU (Intel Core, family~6 model~142; no GPU), averaged over the
+89 test queries across three timing rounds.  Figure~\ref{fig:latency} decomposes
+the cost.  Per-query latency is dominated by dense query encoding
+($13.0$\,ms with all-MiniLM-L6-v2) and FAISS search ($0.06$\,ms)---costs that
+every dense retriever incurs.  ITMA's \emph{added} re-ranking compute---the
+memory summary (Equation~\ref{eq:summary}, $0.37$\,ms), the frozen head over the
+20 candidates ($1.37$\,ms), and the ID-boost ($0.10$\,ms)---totals only
+$1.84$\,ms at $|\mathcal{M}|{=}50$.  The post-query counterfactual update
+(Algorithm~\ref{alg:update}) adds a further $0.5$--$0.6$\,ms.  ITMA's entire
+adaptation machinery therefore costs $\approx2.4$\,ms per query beyond a standard
+dense retriever, leaving total per-query latency well within interactive budgets
+without any GPU.  Latency is essentially flat in $|\mathcal{M}|$ over the
+cold-start range ($|\mathcal{M}|{=}10$ and $|\mathcal{M}|{=}50$ differ by less
+than the run-to-run variance), confirming that the fixed head forward pass, not
+the $O(|\mathcal{M}|)$ memory operations, dominates the added cost.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\linewidth]{fig5_latency.pdf}
+\caption{Per-query retrieval latency by pipeline stage on a commodity CPU
+($|\mathcal{M}|{=}50$; mean over 89 test queries $\times$ 3 rounds).  Query
+encoding and FAISS search (blue) are shared by every dense retriever; ITMA's
+added re-ranking compute (green)---memory summary, frozen-head scoring, and
+ID-boost---totals $1.84$\,ms.}
+\label{fig:latency}
+\end{figure}
 
 \paragraph{Interpretability as a first-class property.}
 An underappreciated consequence of the ID-boost formulation is that ITMA
@@ -1285,18 +1379,15 @@ their advantage for instructors who upload new content frequently.
         weights are bounded by $w_{\max}{=}\eta/(1-\lambda)$, preventing any
         single noisy feedback event from permanently dominating the memory bank.
         Together these properties suggest that performance under noisy feedback
-        degrades sub-linearly rather than catastrophically---a claim we plan
-        to verify empirically in the camera-ready revision.
-  \item \emph{Confidence intervals.}  The current results report mean values
-        averaged over 5 seeds; per-item bootstrap confidence
-        intervals~\citep{efron1993bootstrap} are planned for the camera-ready
-        revision.  The primary adaptation claim---that ITMA is the only system
-        in Table~\ref{tab:retrieval} with non-zero growth between N=0 and
-        N=50---is by construction insensitive to bootstrap variance, since
-        every static baseline produces an identical value at every $N$.
-        The magnitudes of the per-metric gains ($+2.25$\,pp Hit@5,
-        $+4.95$\,pp MRR, $+5.63$\,pp nDCG@10, $+3.0$\,pp Recall@10) are the
-        primary effect sizes to be supported by CIs.
+        degrades sub-linearly rather than catastrophically---a claim we leave
+        to verify empirically in future work.
+  \item \emph{Confidence intervals.}  We report 95\% bootstrap confidence
+        intervals~\citep{efron1993bootstrap} over the 5 seeds for each N=50
+        metric (Section~\ref{sec:eval}), and every interval excludes the
+        corresponding N=0 value.  These intervals capture seed variance;
+        per-item bootstrap intervals over the 89-item test set, which would
+        additionally characterise sampling variance from the benchmark size,
+        are left to future work.
   \item \emph{Evaluation scale.}  LectureRAG-75 contains 103 corpus chunks
         and 89 test items.  Performance on a larger, multi-instructor corpus
         with hundreds of chunks may differ; scaling evaluation is identified as
@@ -1314,7 +1405,7 @@ public benchmark.  ITMA is not designed to maximise absolute Hit@5 on
 MS-MARCO; Dense-MPNet and the Cross-Encoder achieve higher peak performance
 on that benchmark, as Table~\ref{tab:msmarco} shows.  The contribution is
 specifically the cold-start adaptation mechanism---the ability to start safely
-at N=0 and improve monotonically with minimal feedback---and the LectureRAG-75
+at N=0 and improve with minimal feedback---and the LectureRAG-75
 benchmark as a community resource.  All comparisons are made strictly within
 the cold-start evaluation protocol described in this paper.  Researchers
 seeking maximum absolute retrieval performance on general-purpose benchmarks
@@ -1333,7 +1424,7 @@ the benchmark with positive growth on every retrieval metric between N=0 and
 N=50, with no retraining: Hit@5 $0.832\rightarrow0.854$
 $(+2.25\,\text{pp})$, MRR $0.644\rightarrow0.694$ $(+4.95\,\text{pp})$,
 nDCG@10 $0.690\rightarrow0.746$ $(+5.63\,\text{pp})$, and Recall@10
-$0.893\rightarrow0.923$ $(+3.0\,\text{pp})$.  At N=50, Recall@10 surpasses
+$0.893\rightarrow0.922$ $(+2.92\,\text{pp})$.  At N=50, Recall@10 surpasses
 every static baseline including the offline fine-tuned CFRAG-lite (0.888)
 and the cross-encoder (0.899); CFRAG-lite retains the lead on the
 precision-oriented metrics (H@1/H@5/MRR/nDCG@10) by virtue of having seen
@@ -1350,25 +1441,28 @@ learned re-ranking systems and positions it for deployment in
 auditability-sensitive settings.
 
 We introduced LectureRAG-75, a benchmark of 442 QA pairs across five lecture
-domains with a controlled 265/88/89 train/dev/test split---to our knowledge,
-a publicly released benchmark for educational RAG with a controlled
+domains with a controlled 265/88/89 train/dev/test split---a publicly
+released benchmark for educational RAG with a controlled
 cold-start evaluation protocol.  We encourage the community to adopt LectureRAG-75 as a testbed for
 adaptive retrieval research and to extend it to additional domains.  All code,
 checkpoints, data, and evaluation scripts are released open-source.
 
 \paragraph{Practical deployment readiness.}
 ITMA requires no GPU at inference time, no LLM API calls during adaptation,
-and no offline data preparation beyond a one-time head pretraining step.  In
+and no offline data preparation beyond a one-time head pretraining step; its
+adaptation machinery adds only $\approx2.4$\,ms per query over a standard dense
+retriever on a commodity CPU (Figure~\ref{fig:latency}).  In
 a typical educational deployment scenario---an instructor uploads a new lecture
 on Monday; by Friday the system has received 30--50 natural feedback signals
 from students; by end of semester it has received hundreds---ITMA's cold-start
-safety and monotonic adaptation directly map to the deployment lifecycle.  The
+safety and feedback-driven adaptation directly map to the deployment lifecycle.  The
 system is ready for integration into existing educational platforms (Moodle,
 Canvas, proprietary LMS systems) as a drop-in retrieval module with a
 configuration file of three parameters ($\lambda$, $\eta$, $k$).
 
-Future work should (i)~develop pretraining curricula that produce an open gate,
-allowing the scoring head to contribute jointly with the ID-boost;
+Future work should (i)~develop pretraining curricula that delay the scoring
+head's adaptation saturation, allowing it to contribute jointly with the
+ID-boost across larger feedback budgets;
 (ii)~evaluate ITMA on larger multi-instructor corpora and measure adaptation
 trajectory variance across instructor styles; (iii)~combine ITMA's cross-query
 memory bank with within-query iterative retrieval~\citep{jiang2023active} for

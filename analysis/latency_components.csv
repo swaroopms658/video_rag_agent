@@ -1,0 +1,6 @@
+component,kind,mem_size,mean_ms,median_ms,n
+encode,shared,50,13.0090,13.0843,267
+faiss,shared,50,0.0591,0.0574,267
+attend,itma_added,50,0.3701,0.3595,267
+head,itma_added,50,1.3687,1.3086,267
+boost,itma_added,50,0.1012,0.0932,267
